@@ -86,11 +86,27 @@ function escribirFila(hoja, mapa, fila) {
     const valor = fila[campo];
     if (!cols[campo] || valor === '' || valor === null || valor === undefined) return;
     const celda = hoja.getRange(destino, cols[campo]);
-    cambios.push({ celda: celda, valor: ajustarAValidacion(hoja, celda, campo, valor) });
+    cambios.push({ campo: campo, celda: celda, valor: ajustarAValidacion(hoja, celda, campo, valor) });
   });
 
-  cambios.forEach(function (c) { c.celda.setValue(c.valor); });
-  hoja.getRange(destino, cols.fecha).setNumberFormat('dd/mm/yyyy');
+  // Si Sheets rechaza alguna celda, se devuelven las ya escritas a como estaban
+  const escritas = [];
+  try {
+    cambios.forEach(function (c) {
+      const antes = c.celda.getValue();
+      c.celda.setValue(c.valor);
+      escritas.push({ celda: c.celda, antes: antes });
+    });
+    hoja.getRange(destino, cols.fecha).setNumberFormat('dd/mm/yyyy');
+  } catch (e) {
+    escritas.reverse().forEach(function (x) {
+      try { x.celda.setValue(x.antes); } catch (e2) { /* se intentó */ }
+    });
+    const c = cambios[escritas.length];
+    const donde = c ? 'la columna ' + c.campo.toUpperCase() + ' (valor "' + c.valor + '")' : 'la fila';
+    throw new Error('La hoja ' + hoja.getName().trim() + ' no aceptó ' + donde + ' en la fila ' + destino +
+                    '. No se guardó nada. Detalle: ' + e.message);
+  }
 
   return { ok: true, mensaje: 'Guardado en ' + hoja.getName().trim() + ' (fila ' + destino + ')' };
 }
@@ -108,13 +124,26 @@ function ajustarAValidacion(hoja, celda, campo, valor) {
   for (let i = 0; i < opciones.length; i++) {
     if (sinTildes(opciones[i]) === buscado) return opciones[i];
   }
-  if (celda.getDataValidation().getAllowInvalid()) return valor;
+  try {
+    if (celda.getDataValidation().getAllowInvalid()) return valor;
+  } catch (e) { return valor; }
   throw new Error('"' + valor + '" no está en la lista desplegable de la columna ' + campo.toUpperCase() +
                   ' en ' + hoja.getName().trim() + '. Agrégalo a esa lista o elige otra opción.');
 }
 
-/** Opciones de la lista desplegable de una celda, o null si no tiene lista. */
+/**
+ * Opciones de la lista desplegable de una celda, o null si no tiene lista
+ * o si la lista apunta a un rango que ya no existe ("No se encontró el intervalo").
+ */
 function opcionesDeLista(celda) {
+  try {
+    return leerOpciones(celda);
+  } catch (e) {
+    return null;
+  }
+}
+
+function leerOpciones(celda) {
   const regla = celda.getDataValidation();
   if (!regla) return null;
   const tipo = regla.getCriteriaType();
