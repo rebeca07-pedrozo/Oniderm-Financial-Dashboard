@@ -106,8 +106,8 @@ function escribirFila(hoja, mapa, fila) {
     const c = cambios[escritas.length - 1];
     const donde = c ? 'la columna ' + c.campo.toUpperCase() + ' (valor "' + c.valor + '")' : 'la fila';
     throw new Error('La hoja ' + hoja.getName().trim() + ' no aceptó ' + donde + ' en la fila ' + destino +
-                    '. No se guardó nada. Si la lista desplegable de esa columna está dañada, corre ' +
-                    'repararListas() desde el editor de Apps Script. Detalle: ' + e.message);
+                    '. No se guardó nada. Corre rehacerListas() una vez desde el editor de Apps Script ' +
+                    'para limpiar las listas desplegables de la hoja. Detalle: ' + e.message);
   }
 
   return { ok: true, mensaje: 'Guardado en ' + hoja.getName().trim() + ' (fila ' + destino + ')' };
@@ -167,53 +167,50 @@ function ultimaFilaConDatos(hoja, columna) {
   return 1;
 }
 /**
- * Córrela desde el editor (botón Ejecutar) si sale "No se encontró el intervalo" o
- * "infringen las reglas de validación" aunque el valor esté bien.
- * Busca las listas desplegables dañadas (que apuntan a un rango que ya no existe) en las
- * hojas de ingresos y egresos y las vuelve a apuntar a la columna de CUENTAS CONTABLES.
- * Las listas que funcionan no se tocan.
+ * Córrela UNA vez desde el editor (botón Ejecutar) si la hoja rechaza valores que están bien
+ * ("infringen las reglas de validación" o "No se encontró el intervalo").
+ *
+ * En las 4 hojas de ingresos y egresos borra las listas desplegables viejas de las columnas
+ * concepto, soporte, forma de pago, profesional y factura, y pone listas nuevas:
+ *   - con las opciones escritas en la regla (sacadas de CUENTAS CONTABLES), sin rangos;
+ *   - en modo "mostrar advertencia": siguen siendo desplegables, pero nunca bloquean.
+ * No toca datos, fórmulas, colores ni las demás columnas.
  */
-function repararListas() {
-  const cat = getHoja(CONFIG.catalogo);
-  const colsCat = getColumnas(cat, {
-    conceptos: ['CUENTAS DE GASTO'], soportes: ['SOPORTE DE EGRESO'],
-    formasPago: ['FORMA DE PAGO'], profesionales: ['PROFESIONAL']
-  });
-  const desde = colsCat.filaEncabezado + 1;
-  const rangoCat = function (lista) {
-    return colsCat[lista] ? cat.getRange(desde, colsCat[lista], cat.getMaxRows() - desde + 1, 1) : null;
-  };
-
+function rehacerListas() {
+  const listas = leerCuentasContables().listas;
   const tareas = [
     { hojas: CONFIG.egresos,  mapa: COLS_EGRESO,  campo: 'concepto',    lista: 'conceptos' },
     { hojas: CONFIG.egresos,  mapa: COLS_EGRESO,  campo: 'soporte',     lista: 'soportes' },
     { hojas: CONFIG.ingresos, mapa: COLS_INGRESO, campo: 'formaPago',   lista: 'formasPago' },
-    { hojas: CONFIG.ingresos, mapa: COLS_INGRESO, campo: 'profesional', lista: 'profesionales' }
+    { hojas: CONFIG.ingresos, mapa: COLS_INGRESO, campo: 'profesional', lista: 'profesionales' },
+    { hojas: CONFIG.ingresos, mapa: COLS_INGRESO, campo: 'factura',     lista: null, fijas: ['SI', 'NO'] }
   ];
 
-  let reparadas = 0;
+  let hechas = 0;
   tareas.forEach(function (t) {
+    const opciones = (t.fijas || listas[t.lista] || []).slice(0, 500); // Sheets admite hasta 500
+    if (!opciones.length) { Logger.log('Sin opciones para ' + t.campo + ' en CUENTAS CONTABLES; no se toca.'); return; }
+    const regla = SpreadsheetApp.newDataValidation()
+      .requireValueInList(opciones, true)
+      .setAllowInvalid(true)
+      .build();
+
     [t.hojas[1], t.hojas[2]].forEach(function (nombre) {
       const hoja = getHoja(nombre);
       const cols = getColumnas(hoja, t.mapa);
       if (!cols[t.campo]) return;
       const fila = cols.filaEncabezado + 1;
-      const celda = hoja.getRange(fila, cols[t.campo]);
-      if (!celda.getDataValidation()) return; // sin lista: no se toca
-
-      let dañada = false;
-      try { leerOpciones(celda); } catch (e) { dañada = true; }
-      if (!dañada) return;
-
-      const origen = rangoCat(t.lista);
-      if (!origen) { Logger.log('No encuentro la columna de ' + t.lista + ' en CUENTAS CONTABLES'); return; }
-      const regla = SpreadsheetApp.newDataValidation().requireValueInRange(origen, true).setAllowInvalid(false).build();
-      hoja.getRange(fila, cols[t.campo], hoja.getMaxRows() - fila + 1, 1).setDataValidation(regla);
-      Logger.log('Reparada la lista de ' + t.campo.toUpperCase() + ' en ' + hoja.getName().trim());
-      reparadas++;
+      const rango = hoja.getRange(fila, cols[t.campo], hoja.getMaxRows() - fila + 1, 1);
+      rango.clearDataValidations();
+      rango.setDataValidation(regla);
+      Logger.log('Lista nueva en ' + t.campo.toUpperCase() + ' de ' + hoja.getName().trim() + ' (' + opciones.length + ' opciones)');
+      hechas++;
     });
   });
 
   limpiarCache();
-  Logger.log(reparadas ? 'Listo: ' + reparadas + ' lista(s) reparada(s).' : 'No encontré listas dañadas.');
+  Logger.log('Listo: ' + hechas + ' columnas con lista nueva. Ya puedes guardar desde la página.');
 }
+
+/** Nombre anterior, por si alguien la busca así. */
+function repararListas() { rehacerListas(); }

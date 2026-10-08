@@ -10,6 +10,34 @@ function getCatalogo() {
     if (guardado) return JSON.parse(guardado);
   } catch (e) { /* caché dañada: se vuelve a leer la hoja */ }
 
+  const leido = leerCuentasContables();
+  const servicios = leido.servicios;
+  const listas = leido.listas;
+
+  // Los desplegables del formulario usan las mismas opciones que las listas de la hoja,
+  // para que nunca se ofrezca algo que la hoja va a rechazar.
+  usarListaDeHoja(listas, 'conceptos',     CONFIG.egresos,  COLS_EGRESO,  'concepto');
+  usarListaDeHoja(listas, 'soportes',      CONFIG.egresos,  COLS_EGRESO,  'soporte');
+  usarListaDeHoja(listas, 'formasPago',    CONFIG.ingresos, COLS_INGRESO, 'formaPago');
+  usarListaDeHoja(listas, 'profesionales', CONFIG.ingresos, COLS_INGRESO, 'profesional');
+
+  const resultado = {
+    servicios: servicios,
+    formasPago: listas.formasPago,
+    facturas: listas.facturas,
+    conceptos: listas.conceptos,
+    profesionales: listas.profesionales,
+    soportes: listas.soportes
+  };
+
+  try {
+    cache.put('catalogo', JSON.stringify(resultado), 21600); // 6 horas
+  } catch (e) { /* más de 100 KB no cabe en caché; no pasa nada */ }
+  return resultado;
+}
+
+/** Lee servicios y listas tal como están en CUENTAS CONTABLES (sin mirar las otras hojas). */
+function leerCuentasContables() {
   const hoja = getHoja(CONFIG.catalogo);
   const datos = hoja.getDataRange().getValues();
 
@@ -50,26 +78,7 @@ function getCatalogo() {
     });
   }
 
-  // Los desplegables del formulario usan las mismas opciones que las listas de la hoja,
-  // para que nunca se ofrezca algo que la hoja va a rechazar.
-  usarListaDeHoja(listas, 'conceptos',     CONFIG.egresos,  COLS_EGRESO,  'concepto');
-  usarListaDeHoja(listas, 'soportes',      CONFIG.egresos,  COLS_EGRESO,  'soporte');
-  usarListaDeHoja(listas, 'formasPago',    CONFIG.ingresos, COLS_INGRESO, 'formaPago');
-  usarListaDeHoja(listas, 'profesionales', CONFIG.ingresos, COLS_INGRESO, 'profesional');
-
-  const resultado = {
-    servicios: servicios,
-    formasPago: listas.formasPago,
-    facturas: listas.facturas,
-    conceptos: listas.conceptos,
-    profesionales: listas.profesionales,
-    soportes: listas.soportes
-  };
-
-  try {
-    cache.put('catalogo', JSON.stringify(resultado), 21600); // 6 horas
-  } catch (e) { /* más de 100 KB no cabe en caché; no pasa nada */ }
-  return resultado;
+  return { servicios: servicios, listas: listas };
 }
 
 /** Toma la lista desplegable de la hoja del semestre actual; si no hay, deja la de CUENTAS CONTABLES. */
