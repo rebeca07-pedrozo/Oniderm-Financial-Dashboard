@@ -50,6 +50,13 @@ function getCatalogo() {
     });
   }
 
+  // Los desplegables del formulario usan las mismas opciones que las listas de la hoja,
+  // para que nunca se ofrezca algo que la hoja va a rechazar.
+  usarListaDeHoja(listas, 'conceptos',     CONFIG.egresos,  COLS_EGRESO,  'concepto');
+  usarListaDeHoja(listas, 'soportes',      CONFIG.egresos,  COLS_EGRESO,  'soporte');
+  usarListaDeHoja(listas, 'formasPago',    CONFIG.ingresos, COLS_INGRESO, 'formaPago');
+  usarListaDeHoja(listas, 'profesionales', CONFIG.ingresos, COLS_INGRESO, 'profesional');
+
   const resultado = {
     servicios: servicios,
     formasPago: listas.formasPago,
@@ -63,6 +70,18 @@ function getCatalogo() {
     cache.put('catalogo', JSON.stringify(resultado), 21600); // 6 horas
   } catch (e) { /* más de 100 KB no cabe en caché; no pasa nada */ }
   return resultado;
+}
+
+/** Toma la lista desplegable de la hoja del semestre actual; si no hay, deja la de CUENTAS CONTABLES. */
+function usarListaDeHoja(listas, lista, hojas, mapa, campo) {
+  try {
+    const hoja = getHojaPorFecha(new Date(), hojas);
+    const cols = getColumnas(hoja, mapa);
+    if (!cols[campo]) return;
+    const fila = Math.max(ultimaFilaConDatos(hoja, cols.fecha), 2) + 1;
+    const opciones = opcionesDeLista(hoja.getRange(fila, cols[campo]));
+    if (opciones && opciones.length) listas[lista] = opciones.map(function (o) { return o.trim(); });
+  } catch (e) { /* si falla, se queda la lista de CUENTAS CONTABLES */ }
 }
 
 /** Córrela a mano si editas la hoja CUENTAS CONTABLES y quieres ver el cambio ya. */

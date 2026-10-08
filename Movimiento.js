@@ -72,21 +72,60 @@ function getHojaPorFecha(fecha, hojas) {
   return getHoja(fecha.getMonth() + 1 <= 6 ? hojas[1] : hojas[2]);
 }
 
+/**
+ * Escribe solo las celdas que tienen dato (no borra fórmulas ni valores por defecto de la fila)
+ * y revisa ANTES de escribir que cada valor cumpla la validación de su celda.
+ * Así un valor rechazado no deja filas a medias con solo la fecha.
+ */
 function escribirFila(hoja, mapa, fila) {
   const cols = getColumnas(hoja, mapa);
   const destino = ultimaFilaConDatos(hoja, cols.fecha) + 1;
-  const ancho = hoja.getLastColumn();
 
-  const valores = [];
-  for (let i = 0; i < ancho; i++) valores.push('');
+  const cambios = [];
   Object.keys(fila).forEach(function (campo) {
-    if (cols[campo]) valores[cols[campo] - 1] = fila[campo];
+    const valor = fila[campo];
+    if (!cols[campo] || valor === '' || valor === null || valor === undefined) return;
+    const celda = hoja.getRange(destino, cols[campo]);
+    cambios.push({ celda: celda, valor: ajustarAValidacion(hoja, celda, campo, valor) });
   });
 
-  hoja.getRange(destino, 1, 1, ancho).setValues([valores]);
+  cambios.forEach(function (c) { c.celda.setValue(c.valor); });
   hoja.getRange(destino, cols.fecha).setNumberFormat('dd/mm/yyyy');
 
   return { ok: true, mensaje: 'Guardado en ' + hoja.getName().trim() + ' (fila ' + destino + ')' };
+}
+
+/**
+ * Si la celda tiene una lista desplegable, devuelve la opción tal como está escrita en la lista
+ * (ignora mayúsculas, tildes y espacios de más). Si no está en la lista y la celda rechaza
+ * valores inválidos, lanza un error claro sin escribir nada.
+ */
+function ajustarAValidacion(hoja, celda, campo, valor) {
+  const opciones = opcionesDeLista(celda);
+  if (!opciones) return valor;
+
+  const buscado = sinTildes(valor);
+  for (let i = 0; i < opciones.length; i++) {
+    if (sinTildes(opciones[i]) === buscado) return opciones[i];
+  }
+  if (celda.getDataValidation().getAllowInvalid()) return valor;
+  throw new Error('"' + valor + '" no está en la lista desplegable de la columna ' + campo.toUpperCase() +
+                  ' en ' + hoja.getName().trim() + '. Agrégalo a esa lista o elige otra opción.');
+}
+
+/** Opciones de la lista desplegable de una celda, o null si no tiene lista. */
+function opcionesDeLista(celda) {
+  const regla = celda.getDataValidation();
+  if (!regla) return null;
+  const tipo = regla.getCriteriaType();
+  const criterio = regla.getCriteriaValues();
+  const T = SpreadsheetApp.DataValidationCriteria;
+  let lista = null;
+  if (tipo === T.VALUE_IN_LIST) lista = criterio[0];
+  else if (tipo === T.VALUE_IN_RANGE) lista = criterio[0].getValues().map(function (f) { return f[0]; });
+  if (!lista) return null;
+  // Se devuelven tal cual (con espacios incluidos): Sheets solo acepta el texto exacto de la lista
+  return lista.map(String).filter(function (o) { return o.trim(); });
 }
 
 function ultimaFilaConDatos(hoja, columna) {
