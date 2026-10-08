@@ -1,0 +1,178 @@
+<style>
+  :root {
+    /* paleta Oniderm */
+    --verde: #4BB69E;
+    --verde-claro: #8ECFBE;
+    --verde-muy-claro: #E8F5F1;
+    --verde-borde: #D5E8E2;
+    --beige: #CDBFAF;
+    --crema: #F4F1EC;
+    --blanco: #FFFFFF;
+    --texto: #4A4A46;
+    --texto-suave: #858581;
+    --alerta: #B9736B;
+    --radio: 16px;
+
+    /* alias que usan los formularios */
+    --fondo: var(--crema);
+    --tarjeta: var(--blanco);
+    --suave: var(--texto-suave);
+    --borde: var(--verde-borde);
+    --marca: var(--verde);
+    --marca-claro: var(--verde-claro);
+    --arena: var(--beige);
+    --ingreso: var(--verde);
+    --egreso: var(--beige);
+    --ok: var(--verde);
+    --error: var(--alerta);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--crema);
+    color: var(--texto);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  .cabecera, .tabs, #formIngreso, #formEgreso, #recientes { max-width: 820px; margin-left: auto; margin-right: auto; }
+
+  /* ---------- encabezado ---------- */
+  .cabecera { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .marca { display: flex; align-items: center; gap: 13px; }
+  .marca img { height: 42px; width: auto; }
+  .cabecera h1 { margin: 0; font-size: 21px; font-weight: 600; color: var(--verde); letter-spacing: -0.3px; }
+  .cabecera p { margin: 1px 0 0; font-size: 12.5px; color: var(--texto-suave); }
+  .estado { font-size: 12px; color: var(--texto-suave); }
+
+  /* ---------- pestañas ---------- */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; padding: 11px; border: 1px solid var(--verde-borde); background: transparent;
+    border-radius: 11px; font: inherit; font-size: 14px; font-weight: 500;
+    color: var(--texto-suave); cursor: pointer;
+  }
+  .tab.activa { background: var(--blanco); color: var(--texto); border-color: var(--verde-claro); }
+
+  /* ---------- formularios ---------- */
+  .tarjeta { background: var(--blanco); border: 1px solid var(--verde-borde); border-radius: var(--radio); padding: 22px; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .campo { display: flex; flex-direction: column; gap: 5px; }
+  .campo span { font-size: 11.5px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; color: var(--texto-suave); }
+  .campo em { font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .campo.chico { width: calc(25% - 11px); }
+  .campo.medio { width: calc(33.33% - 10px); }
+  .campo.grande { width: calc(50% - 7px); }
+  .campo.total { width: 100%; }
+
+  input, select {
+    font: inherit; padding: 10px 12px; border: 1px solid var(--verde-borde);
+    border-radius: 10px; background: var(--blanco); color: var(--texto); width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid var(--verde-muy-claro); border-color: var(--verde-claro); }
+
+  .pista { font-size: 12px; color: var(--verde); min-height: 15px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+  .resumen { display: flex; gap: 10px; margin: 18px 0 16px; padding: 15px; background: var(--verde-muy-claro); border-radius: 12px; }
+  .resumen div { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .resumen span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto-suave); }
+  .resumen strong { font-size: 19px; font-variant-numeric: tabular-nums; }
+  .resumen .neto strong { color: var(--verde); }
+
+  .guardar {
+    width: 100%; margin-top: 4px; padding: 14px; border: 0; border-radius: 12px;
+    background: var(--verde); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .guardar.gasto { background: #A08C76; margin-top: 18px; }
+  .guardar:disabled { opacity: 0.5; cursor: wait; }
+
+  .recientes { margin-top: 22px; }
+  .recientes h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto-suave); margin: 0 0 8px; }
+  .recientes ul { list-style: none; margin: 0; padding: 0; }
+  .recientes li {
+    display: flex; justify-content: space-between; gap: 10px; padding: 10px 13px;
+    background: var(--blanco); border: 1px solid var(--verde-borde); border-radius: 10px;
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .recientes b { font-variant-numeric: tabular-nums; }
+
+  .aviso {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 90px);
+    padding: 12px 18px; border-radius: 11px; color: #fff; font-size: 14px;
+    background: var(--verde); opacity: 0; transition: all 0.25s; max-width: 90%;
+  }
+  .aviso.visible { transform: translate(-50%, 0); opacity: 1; }
+  .aviso.malo { background: var(--alerta); }
+
+  .oculto { display: none; }
+
+  /* ---------- dashboard ---------- */
+  .tablero-top { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
+  .titulo-tablero { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .sub-tablero { margin: 1px 0 0; font-size: 12.5px; color: var(--texto-suave); }
+
+  .periodo { display: flex; gap: 8px; align-items: center; }
+  .periodo select { width: auto; font-size: 13.5px; padding: 9px 13px; cursor: pointer; }
+  .recargar {
+    font-size: 15px; width: 38px; height: 38px; line-height: 1; flex: none;
+    border: 1px solid var(--verde-borde); border-radius: 10px;
+    background: var(--blanco); color: var(--texto-suave); cursor: pointer;
+  }
+  .recargar:hover { color: var(--verde); border-color: var(--verde-claro); }
+
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 14px; }
+  .kpi {
+    background: var(--blanco); border: 1px solid var(--verde-borde); border-radius: var(--radio);
+    padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 1px 2px rgba(74, 74, 70, 0.03);
+  }
+  .kpi.destacada { background: var(--verde-muy-claro); border-color: var(--verde-claro); }
+  .kpi-nombre { font-size: 12.5px; color: var(--texto-suave); line-height: 1.3; }
+  .kpi strong { font-size: 25px; font-weight: 600; letter-spacing: -0.6px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi-cambio { font-style: normal; font-size: 12px; color: var(--texto-suave); }
+  .kpi-cambio.sube { color: var(--verde); }
+  .kpi-cambio.baja { color: var(--alerta); }
+
+  .revisar {
+    background: var(--blanco); border: 1px solid var(--beige); border-left: 3px solid var(--beige);
+    border-radius: var(--radio); padding: 18px 22px; margin-bottom: 14px;
+  }
+  .revisar h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+  .revisar ul { margin: 0; padding-left: 18px; }
+  .revisar li { font-size: 13.5px; margin-bottom: 5px; }
+  .revisar li:last-child { margin-bottom: 0; }
+  .revisar li span { color: var(--texto-suave); }
+
+  .panel {
+    background: var(--blanco); border: 1px solid var(--verde-borde); border-radius: var(--radio);
+    padding: 22px 24px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(74, 74, 70, 0.03);
+  }
+  .panel h2 { margin: 0 0 18px; font-size: 14px; font-weight: 600; }
+  .dos-paneles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .lienzo { position: relative; height: 240px; }
+  .lienzo.alto { height: 300px; }
+  .lectura { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--verde-borde); font-size: 13.5px; color: var(--texto-suave); }
+  .lectura b { color: var(--texto); font-weight: 600; }
+
+  .tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .tabla th { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--verde-borde); font-size: 12px; font-weight: 500; color: var(--texto-suave); }
+  .tabla th:first-child, .tabla td:first-child { text-align: left; }
+  .tabla td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--crema); font-variant-numeric: tabular-nums; }
+  .tabla tbody tr:last-child td { border-bottom: 0; }
+  .tabla tbody tr:hover { background: var(--verde-muy-claro); }
+  .negativo { color: var(--alerta); }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .dos-paneles { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 620px) {
+    .campo.chico, .campo.medio, .campo.grande { width: 100%; }
+  }
+</style>

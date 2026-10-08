@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <?!= incluir('Estilos'); ?>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="cabecera">
+    <div class="marca">
+      <img src="<?= getLogo() ?>" alt="Oniderm" onerror="this.style.display='none'">
+    <div>
+        <h1>Oniderm</h1>
+        <p>Registro de ingresos y egresos</p>
+      </div>
+    </div>
+    <span id="estado" class="estado">Cargando listas…</span>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabDash" class="tab" onclick="cambiarTab('dash')">Dashboard</button>
+    <button id="tabIngreso" class="tab activa" onclick="cambiarTab('ingreso')">Ingreso</button>
+    <button id="tabEgreso" class="tab" onclick="cambiarTab('egreso')">Egreso</button>
+  </nav>
+
+  <!-- ====== INGRESO ====== -->
+  <section id="formIngreso" class="tarjeta">
+    <div class="grid">
+      <label class="campo chico">
+        <span>Fecha</span>
+        <input type="date" id="i_fecha">
+      </label>
+
+      <label class="campo grande">
+        <span>Servicio</span>
+        <input list="listaServicios" id="i_codigo" placeholder="Escribe código o nombre (ej. P20 o pedicure)"
+               onchange="verServicio()" onblur="verServicio()">
+        <datalist id="listaServicios"></datalist>
+        <small id="i_nombre" class="pista"></small>
+      </label>
+
+      <label class="campo grande">
+        <span>Paciente</span>
+        <input type="text" id="i_paciente" placeholder="Nombre y apellido">
+      </label>
+
+      <label class="campo medio">
+        <span>Profesional</span>
+        <select id="i_profesional"></select>
+      </label>
+
+      <label class="campo medio">
+        <span>Valor</span>
+        <input type="text" id="i_valor" inputmode="numeric" placeholder="$ 0"
+               oninput="formatearPesos(this); calcular()">
+      </label>
+
+      <label class="campo medio">
+        <span>Forma de pago</span>
+        <select id="i_formaPago" onchange="calcular()"></select>
+      </label>
+
+      <label class="campo chico">
+        <span>Cantidad</span>
+        <input type="number" id="i_cantidad" value="1" min="1">
+      </label>
+
+      <label class="campo chico">
+        <span>¿Factura?</span>
+        <select id="i_factura" onchange="verFactura()">
+          <option value="NO">NO</option>
+          <option value="SI">SI</option>
+        </select>
+      </label>
+
+      <label class="campo chico oculto" id="cajaNumFactura">
+        <span>No. factura</span>
+        <input type="text" id="i_numFactura">
+      </label>
+
+      <label class="campo total">
+        <span>Observaciones <em>(opcional)</em></span>
+        <input type="text" id="i_observaciones">
+      </label>
+    </div>
+
+    <div class="resumen">
+      <div><span>Comisión BOLD 5%</span><strong id="i_comision">$ 0</strong></div>
+      <div class="neto"><span>Total a recibir</span><strong id="i_total">$ 0</strong></div>
+    </div>
+
+    <button class="guardar" onclick="guardar('ingreso')">Guardar ingreso</button>
+  </section>
+
+  <!-- ====== EGRESO ====== -->
+  <section id="formEgreso" class="tarjeta oculto">
+    <div class="grid">
+      <label class="campo chico">
+        <span>Fecha</span>
+        <input type="date" id="e_fecha">
+      </label>
+
+      <label class="campo grande">
+        <span>Concepto</span>
+        <select id="e_concepto"></select>
+      </label>
+
+      <label class="campo grande">
+        <span>Descripción</span>
+        <input type="text" id="e_descripcion" placeholder="Ej. arriendo mes octubre">
+      </label>
+
+      <label class="campo medio">
+        <span>Valor</span>
+        <input type="text" id="e_valor" inputmode="numeric" placeholder="$ 0"
+               oninput="formatearPesos(this)">
+      </label>
+
+      <label class="campo medio">
+        <span>Soporte</span>
+        <select id="e_soporte"></select>
+      </label>
+
+      <label class="campo chico">
+        <span>No. soporte</span>
+        <input type="text" id="e_numSoporte">
+      </label>
+
+      <label class="campo chico">
+        <span>Cantidad</span>
+        <input type="number" id="e_cantidad" value="1" min="1">
+      </label>
+
+      <label class="campo total">
+        <span>Observaciones <em>(opcional)</em></span>
+        <input type="text" id="e_observaciones">
+      </label>
+    </div>
+
+    <button class="guardar gasto" onclick="guardar('egreso')">Guardar egreso</button>
+  </section>
+  
+   <!-- ====== DASHBOARD ====== -->
+  <section id="formDash" class="oculto">
+
+    <header class="tablero-top">
+      <div>
+        <h2 class="titulo-tablero">Tus finanzas</h2>
+        <p class="sub-tablero">Dra. Lina Primo Losada</p>
+      </div>
+      <div class="periodo">
+        <select id="f_anio" onchange="pintarDashboard()"></select>
+        <select id="f_periodo" onchange="pintarDashboard()">
+          <option value="0">Todo el año</option>
+          <option value="1">Enero a junio</option>
+          <option value="2">Julio a diciembre</option>
+        </select>
+        <button class="recargar" onclick="refrescarDashboard()" title="Volver a leer la hoja">↻</button>
+      </div>
+    </header>
+
+    <section class="kpis">
+      <article class="kpi"><span class="kpi-nombre">Lo que entró</span><strong id="k1">—</strong><em id="k1v" class="kpi-cambio"></em></article>
+      <article class="kpi"><span class="kpi-nombre">Lo que salió</span><strong id="k2">—</strong><em id="k2v" class="kpi-cambio"></em></article>
+      <article class="kpi destacada"><span class="kpi-nombre">Lo que te quedó</span><strong id="k3">—</strong><em id="k3v" class="kpi-cambio"></em></article>
+      <article class="kpi"><span class="kpi-nombre">De cada $100, te quedan</span><strong id="k4">—</strong><em id="k4v" class="kpi-cambio"></em></article>
+      <article class="kpi"><span class="kpi-nombre">Caja acumulada</span><strong id="k5">—</strong><em id="k5v" class="kpi-cambio">desde el primer registro</em></article>
+    </section>
+
+    <section id="revisar" class="revisar oculto">
+      <h2>Para revisar</h2>
+      <ul id="listaRevisar"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Mes a mes: lo que entra y lo que sale</h2>
+      <div class="lienzo alto"><canvas id="gMeses"></canvas></div>
+      <p class="lectura" id="leerMeses"></p>
+    </section>
+
+    <div class="dos-paneles">
+      <section class="panel">
+        <h2>En qué se va el dinero</h2>
+        <div class="lienzo"><canvas id="gGastos"></canvas></div>
+        <p class="lectura" id="leerGastos"></p>
+      </section>
+      <section class="panel">
+        <h2>Qué te genera más ingresos</h2>
+        <div class="lienzo"><canvas id="gServicios"></canvas></div>
+        <p class="lectura" id="leerServicios"></p>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>Cómo ha evolucionado tu caja</h2>
+      <div class="lienzo"><canvas id="gCaja"></canvas></div>
+      <p class="lectura" id="leerCaja"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Detalle por mes</h2>
+      <div id="tablaMeses"></div>
+    </section>
+
+  </section>
+
+</div>
+
+<div id="aviso" class="aviso"></div>
+
+<?!= incluir('Logica'); ?>
+</body>
+</html>

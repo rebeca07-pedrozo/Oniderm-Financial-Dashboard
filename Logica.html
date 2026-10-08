@@ -1,0 +1,596 @@
+<script>
+  let catalogo = null;
+  let tabActual = 'ingreso';
+
+  window.addEventListener('load', function () {
+    document.getElementById('i_fecha').value = hoy();
+    document.getElementById('e_fecha').value = hoy();
+    google.script.run.withSuccessHandler(pintarListas)
+                     .withFailureHandler(fallo)
+                     .getCatalogo();
+  });
+
+  function hoy() {
+    const d = new Date();
+    return d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate());
+  }
+  function dos(n) { return (n < 10 ? '0' : '') + n; }
+
+  function pintarListas(datos) {
+    catalogo = datos;
+
+    const lista = document.getElementById('listaServicios');
+    lista.innerHTML = datos.servicios.map(function (s) {
+      return '<option value="' + s.codigo + ' · ' + s.nombre + '"></option>';
+    }).join('');
+
+    llenarSelect('i_profesional', datos.profesionales);
+    llenarSelect('i_formaPago', datos.formasPago);
+    llenarSelect('e_concepto', datos.conceptos);
+    llenarSelect('e_soporte', datos.soportes, true);
+
+    document.getElementById('estado').textContent = datos.servicios.length + ' servicios cargados';
+  }
+
+  function llenarSelect(id, valores, conVacio) {
+    const select = document.getElementById(id);
+    let html = conVacio ? '<option value="">(sin soporte)</option>' : '';
+    html += valores.map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
+    select.innerHTML = html;
+  }
+
+    function cambiarTab(tab) {
+    tabActual = tab;
+    ['Ingreso', 'Egreso', 'Dash'].forEach(function (t) {
+      const activa = t.toLowerCase() === tab;
+      document.getElementById('tab' + t).classList.toggle('activa', activa);
+      document.getElementById('form' + t).classList.toggle('oculto', !activa);
+    });
+    const hayRecientes = document.getElementById('listaRecientes').children.length > 0;
+    document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || !hayRecientes);
+    if (tab === 'dash') cargarDashboard();
+  }
+
+  function verFactura() {
+    const si = document.getElementById('i_factura').value === 'SI';
+    document.getElementById('cajaNumFactura').classList.toggle('oculto', !si);
+  }
+
+  /** Del texto "P20 · PEDICURE CLÍNICO" saca el código y confirma el nombre. */
+  function servicioElegido() {
+    const texto = document.getElementById('i_codigo').value.trim();
+    if (!texto || !catalogo) return null;
+    const codigo = texto.split('·')[0].trim().toUpperCase();
+    for (let i = 0; i < catalogo.servicios.length; i++) {
+      if (catalogo.servicios[i].codigo.toUpperCase() === codigo) return catalogo.servicios[i];
+    }
+    return null;
+  }
+
+  function verServicio() {
+    const s = servicioElegido();
+    const pista = document.getElementById('i_nombre');
+    if (s) {
+      document.getElementById('i_codigo').value = s.codigo + ' · ' + s.nombre;
+      pista.textContent = s.nombre;
+      pista.style.color = '';
+    } else if (document.getElementById('i_codigo').value.trim()) {
+      pista.textContent = 'Ese código no está en CUENTAS CONTABLES';
+      pista.style.color = '#b3443a';
+    } else {
+      pista.textContent = '';
+    }
+  }
+
+  function formatearPesos(input) {
+    const numero = input.value.replace(/\D/g, '');
+    input.value = numero ? '$ ' + Number(numero).toLocaleString('es-CO') : '';
+  }
+
+  function numero(id) {
+    return Number(document.getElementById(id).value.replace(/\D/g, '')) || 0;
+  }
+
+  function pesos(n) { return '$ ' + Number(n || 0).toLocaleString('es-CO'); }
+
+  function calcular() {
+    const valor = numero('i_valor');
+    const pago = document.getElementById('i_formaPago').value.toUpperCase();
+    const aplica = pago.indexOf('TARJETA') >= 0;
+    const comision = aplica ? Math.round(valor * 0.05) : 0;
+    document.getElementById('i_comision').textContent = aplica ? pesos(comision) : 'No aplica';
+    document.getElementById('i_total').textContent = pesos(valor - comision);
+  }
+
+  function valor(id) { return document.getElementById(id).value.trim(); }
+
+  function guardar(tipo) {
+    let datos, metodo;
+
+    if (tipo === 'ingreso') {
+      const s = servicioElegido();
+      if (!s) return avisar('Elige un servicio válido de la lista.', true);
+      datos = {
+        fecha: valor('i_fecha'),
+        codigo: s.codigo,
+        procedimiento: s.nombre,
+        paciente: valor('i_paciente'),
+        profesional: valor('i_profesional'),
+        cantidad: valor('i_cantidad'),
+        valor: numero('i_valor'),
+        formaPago: valor('i_formaPago'),
+        factura: valor('i_factura'),
+        numFactura: valor('i_numFactura'),
+        observaciones: valor('i_observaciones')
+      };
+      metodo = 'guardarIngreso';
+    } else {
+      datos = {
+        fecha: valor('e_fecha'),
+        concepto: valor('e_concepto'),
+        descripcion: valor('e_descripcion'),
+        cantidad: valor('e_cantidad'),
+        valor: numero('e_valor'),
+        soporte: valor('e_soporte'),
+        numSoporte: valor('e_numSoporte'),
+        observaciones: valor('e_observaciones')
+      };
+      metodo = 'guardarEgreso';
+    }
+
+    bloquear(true);
+    google.script.run
+      .withSuccessHandler(function (r) {
+        bloquear(false);
+        avisar(r.mensaje, false);
+        agregarReciente(tipo, datos);
+        limpiar(tipo);
+        resumen = null;
+      })
+      .withFailureHandler(function (e) {
+        bloquear(false);
+        avisar(e.message, true);
+      })[metodo](datos);
+  }
+
+  function limpiar(tipo) {
+    const p = tipo === 'ingreso' ? 'i_' : 'e_';
+    const campos = tipo === 'ingreso'
+      ? ['codigo', 'paciente', 'valor', 'numFactura', 'observaciones']
+      : ['descripcion', 'valor', 'numSoporte', 'observaciones'];
+    campos.forEach(function (c) { document.getElementById(p + c).value = ''; });
+    document.getElementById(p + 'cantidad').value = 1;
+    if (tipo === 'ingreso') { verServicio(); calcular(); }
+    document.getElementById(p === 'i_' ? 'i_paciente' : 'e_descripcion').focus();
+  }
+
+  function agregarReciente(tipo, datos) {
+    document.getElementById('recientes').classList.remove('oculto');
+    const texto = tipo === 'ingreso'
+      ? datos.codigo + ' · ' + datos.paciente
+      : datos.concepto + ' · ' + datos.descripcion;
+    const li = document.createElement('li');
+    li.innerHTML = '<span>' + texto + '</span><b>' + (tipo === 'egreso' ? '−' : '') + pesos(datos.valor) + '</b>';
+    const lista = document.getElementById('listaRecientes');
+    lista.insertBefore(li, lista.firstChild);
+  }
+
+  function bloquear(activo) {
+    const botones = document.querySelectorAll('.guardar');
+    for (let i = 0; i < botones.length; i++) botones[i].disabled = activo;
+  }
+
+  function avisar(mensaje, malo) {
+    const aviso = document.getElementById('aviso');
+    aviso.textContent = mensaje;
+    aviso.className = 'aviso visible' + (malo ? ' malo' : '');
+    setTimeout(function () { aviso.className = 'aviso' + (malo ? ' malo' : ''); }, 3200);
+  }
+
+  function fallo(e) {
+    document.getElementById('estado').textContent = 'Error cargando listas';
+    avisar(e.message, true);
+  }
+    /* ===================== DASHBOARD ===================== */
+
+  const VERDE = '#4BB69E';
+  const VERDE_CLARO = '#8ECFBE';
+  const BEIGE = '#CDBFAF';
+  const GRIS = '#858581';
+  const GRIS_FUERTE = '#4A4A46';
+  const REJILLA = '#E8F5F1';
+
+  const MES_LARGO = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const MES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  let resumen = null;
+  const graficos = {};
+
+  function cargarDashboard() {
+    if (resumen) return;
+    google.script.run
+      .withSuccessHandler(function (r) { resumen = r; llenarAnios(); pintarDashboard(); })
+      .withFailureHandler(function (e) { avisar(e.message, true); })
+      .getResumen();
+  }
+
+  function refrescarDashboard() { resumen = null; cargarDashboard(); }
+
+  /* ---------- formato ---------- */
+  function pesos(n) {
+    return (n < 0 ? '−' : '') + '$ ' + Math.round(Math.abs(n)).toLocaleString('es-CO');
+  }
+  function corto(n) {
+    const signo = n < 0 ? '−' : '';
+    const abs = Math.abs(n);
+    if (abs >= 1000000) return signo + '$' + (abs / 1000000).toFixed(abs >= 10000000 ? 0 : 1).replace('.', ',') + 'M';
+    if (abs >= 1000) return signo + '$' + Math.round(abs / 1000) + 'K';
+    return signo + '$' + Math.round(abs);
+  }
+  function numMes(m) { return Number(m.substring(5, 7)); }
+  function nombreMes(m) { return MES_LARGO[numMes(m) - 1]; }
+  function mesActual() {
+    const d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+  }
+  function bonito(t) {
+    const s = String(t).toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function acortar(t) {
+    const s = bonito(t);
+    return s.length > 30 ? s.substring(0, 29) + '…' : s;
+  }
+
+  /* ---------- datos ---------- */
+  function llenarAnios() {
+    const anios = [];
+    resumen.meses.forEach(function (m) {
+      const a = m.mes.substring(0, 4);
+      if (anios.indexOf(a) < 0) anios.push(a);
+    });
+    anios.sort().reverse();
+    document.getElementById('f_anio').innerHTML = anios.map(function (a) {
+      return '<option value="' + a + '">' + a + '</option>';
+    }).join('');
+  }
+
+  function pasa(mes, anio) {
+    if (mes.substring(0, 4) !== anio) return false;
+    const p = document.getElementById('f_periodo').value;
+    const n = numMes(mes);
+    if (p === '1') return n <= 6;
+    if (p === '2') return n > 6;
+    return true;
+  }
+
+  function filtrar(anio) {
+    return {
+      meses: resumen.meses.filter(function (m) { return pasa(m.mes, anio); }),
+      servicios: resumen.servicios.filter(function (s) { return pasa(s.mes, anio); }),
+      gastos: resumen.gastos.filter(function (g) { return pasa(g.mes, anio); })
+    };
+  }
+
+  function totales(meses) {
+    const t = { ingreso: 0, egreso: 0, comision: 0, atenciones: 0 };
+    meses.forEach(function (m) {
+      t.ingreso += m.ingreso; t.egreso += m.egreso;
+      t.comision += m.comision; t.atenciones += m.atenciones;
+    });
+    t.saldo = t.ingreso - t.egreso;
+    t.margen = t.ingreso > 0 ? (t.saldo / t.ingreso) * 100 : 0;
+    return t;
+  }
+
+  function juntar(filas, cuantas) {
+    const mapa = {};
+    filas.forEach(function (f) { mapa[f.nombre] = (mapa[f.nombre] || 0) + f.valor; });
+    const lista = Object.keys(mapa)
+      .map(function (k) { return { nombre: k, valor: mapa[k] }; })
+      .filter(function (x) { return x.valor > 0; })
+      .sort(function (a, b) { return b.valor - a.valor; });
+    if (!cuantas || lista.length <= cuantas) return lista;
+    const resto = lista.slice(cuantas).reduce(function (s, x) { return s + x.valor; }, 0);
+    const corte = lista.slice(0, cuantas);
+    if (resto > 0) corte.push({ nombre: 'Todo lo demás', valor: resto });
+    return corte;
+  }
+
+  function cajaHasta(mes) {
+    let suma = 0;
+    resumen.meses.forEach(function (m) { if (m.mes <= mes) suma += m.ingreso - m.egreso; });
+    return suma;
+  }
+
+  function restarUno(mes) {
+    let a = Number(mes.substring(0, 4)), m = numMes(mes) - 1;
+    if (m === 0) { m = 12; a -= 1; }
+    return a + '-' + (m < 10 ? '0' : '') + m;
+  }
+
+  /* ---------- pintar ---------- */
+  function pintarDashboard() {
+    if (!resumen) return;
+    const anio = document.getElementById('f_anio').value;
+    const datos = filtrar(anio);
+    const previo = filtrar(String(Number(anio) - 1));
+    const hoy = mesActual();
+    const cerrados = datos.meses.filter(function (m) { return m.mes !== hoy; });
+
+    const t = totales(datos.meses);
+    const p = totales(previo.meses);
+
+    texto('k1', pesos(t.ingreso)); cambio('k1v', t.ingreso, p.ingreso, true);
+    texto('k2', pesos(t.egreso));  cambio('k2v', t.egreso, p.egreso, false);
+    texto('k3', pesos(t.saldo));   cambio('k3v', t.saldo, p.saldo, true);
+    texto('k4', Math.round(t.margen) + '%'); cambioPuntos('k4v', t.margen, p.margen);
+
+    const ultimo = datos.meses.length ? datos.meses[datos.meses.length - 1].mes : null;
+    texto('k5', ultimo ? pesos(cajaHasta(ultimo)) : '—');
+
+    graficoMeses(datos.meses);
+    graficoBarras('gGastos', juntar(datos.gastos, 7), BEIGE);
+    graficoBarras('gServicios', juntar(datos.servicios, 7), VERDE_CLARO, VERDE);
+    graficoCaja(datos.meses);
+    tabla(datos.meses, hoy);
+
+    leerMeses(cerrados);
+    leerLista('leerGastos', juntar(datos.gastos), t.egreso, 'de todo lo que gastas');
+    leerLista('leerServicios', juntar(datos.servicios), t.ingreso, 'de tus ingresos');
+    leerCaja(datos.meses);
+    paraRevisar(datos, cerrados, t, p);
+  }
+
+  function texto(id, valor) { document.getElementById(id).textContent = valor; }
+
+  function cambio(id, hoy, antes, masEsMejor) {
+    const el = document.getElementById(id);
+    if (!antes) { el.textContent = 'sin año anterior para comparar'; el.className = 'kpi-cambio'; return; }
+    if (antes < 0) { el.textContent = 'el año pasado cerró en negativo'; el.className = 'kpi-cambio'; return; }
+    const pct = ((hoy - antes) / Math.abs(antes)) * 100;
+    const sube = pct >= 0;
+    el.textContent = (sube ? '↑ ' : '↓ ') + Math.abs(Math.round(pct)) + '% vs. el año pasado';
+    el.className = 'kpi-cambio ' + (sube === masEsMejor ? 'sube' : 'baja');
+  }
+
+  function cambioPuntos(id, hoy, antes) {
+    const el = document.getElementById(id);
+    if (!antes) { el.textContent = 'sin año anterior para comparar'; el.className = 'kpi-cambio'; return; }
+    const dif = Math.round(hoy - antes);
+    el.textContent = (dif >= 0 ? '↑ ' : '↓ ') + Math.abs(dif) + ' puntos vs. el año pasado';
+    el.className = 'kpi-cambio ' + (dif >= 0 ? 'sube' : 'baja');
+  }
+
+  /* ---------- gráficos ---------- */
+  function dibujar(id, config) {
+    if (graficos[id]) graficos[id].destroy();
+    graficos[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+  }
+
+  function base() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#FFFFFF', titleColor: GRIS_FUERTE, bodyColor: GRIS_FUERTE,
+          borderColor: REJILLA, borderWidth: 1, padding: 12, usePointStyle: true,
+          boxPadding: 5, cornerRadius: 10, titleFont: { weight: '600' },
+          callbacks: {
+            label: function (c) {
+              const v = (c.parsed.y !== undefined && c.parsed.y !== null) ? c.parsed.y : c.parsed.x;
+              return ' ' + (c.dataset.label ? c.dataset.label + ': ' : '') + pesos(v);
+            }
+          }
+        }
+      }
+    };
+  }
+
+  function graficoMeses(meses) {
+    const cfg = base();
+    cfg.plugins.legend = {
+      display: true, position: 'top', align: 'end',
+      labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 18, color: GRIS, font: { size: 12 } }
+    };
+    cfg.interaction = { mode: 'index', intersect: false };
+    cfg.scales = {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: GRIS, font: { size: 12 } } },
+      y: { grid: { color: REJILLA }, border: { display: false },
+           ticks: { color: GRIS, font: { size: 11.5 }, maxTicksLimit: 5, callback: function (v) { return corto(v); } } }
+    };
+
+    dibujar('gMeses', {
+      type: 'bar',
+      data: {
+        labels: meses.map(function (m) { return MES_CORTO[numMes(m.mes) - 1]; }),
+        datasets: [
+          { label: 'Entró', data: meses.map(function (m) { return m.ingreso; }), backgroundColor: VERDE, borderRadius: 6, maxBarThickness: 26 },
+          { label: 'Salió', data: meses.map(function (m) { return m.egreso; }), backgroundColor: BEIGE, borderRadius: 6, maxBarThickness: 26 },
+          { label: 'Te quedó', type: 'line', data: meses.map(function (m) { return m.ingreso - m.egreso; }),
+            borderColor: GRIS_FUERTE, borderWidth: 1.5, borderDash: [4, 4],
+            pointRadius: 2.5, pointBackgroundColor: '#FFFFFF', pointBorderColor: GRIS_FUERTE, tension: 0.3 }
+        ]
+      },
+      options: cfg
+    });
+  }
+
+  function graficoBarras(id, filas, color, colorPrimero) {
+    const cfg = base();
+    cfg.indexAxis = 'y';
+    cfg.scales = {
+      x: { grid: { color: REJILLA }, border: { display: false },
+           ticks: { color: GRIS, font: { size: 11.5 }, maxTicksLimit: 4, callback: function (v) { return corto(v); } } },
+      y: { grid: { display: false }, border: { display: false },
+           ticks: { color: GRIS_FUERTE, font: { size: 12 }, crossAlign: 'far' } }
+    };
+    const colores = filas.map(function (f, i) {
+      if (f.nombre === 'Todo lo demás') return REJILLA;
+      return (i === 0 && colorPrimero) ? colorPrimero : color;
+    });
+    dibujar(id, {
+      type: 'bar',
+      data: {
+        labels: filas.map(function (f) { return acortar(f.nombre); }),
+        datasets: [{ data: filas.map(function (f) { return f.valor; }), backgroundColor: colores, borderRadius: 5, maxBarThickness: 18 }]
+      },
+      options: cfg
+    });
+  }
+
+  function graficoCaja(meses) {
+    if (!meses.length) return;
+    let acumulado = cajaHasta(restarUno(meses[0].mes));
+    const serie = meses.map(function (m) { acumulado += m.ingreso - m.egreso; return acumulado; });
+
+    const cfg = base();
+    cfg.scales = {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: GRIS, font: { size: 12 } } },
+      y: { grid: { color: REJILLA }, border: { display: false },
+           ticks: { color: GRIS, font: { size: 11.5 }, maxTicksLimit: 5, callback: function (v) { return corto(v); } } }
+    };
+
+    dibujar('gCaja', {
+      type: 'line',
+      data: {
+        labels: meses.map(function (m) { return MES_CORTO[numMes(m.mes) - 1]; }),
+        datasets: [{
+          label: 'Caja acumulada', data: serie,
+          borderColor: VERDE, borderWidth: 2.5, fill: true,
+          backgroundColor: 'rgba(75, 182, 158, 0.10)',
+          pointRadius: 3, pointBackgroundColor: '#FFFFFF', pointBorderColor: VERDE, pointBorderWidth: 2,
+          tension: 0.32
+        }]
+      },
+      options: cfg
+    });
+  }
+
+  /* ---------- tabla ---------- */
+  function tabla(meses, hoy) {
+    let html = '<table class="tabla"><thead><tr><th>Mes</th><th>Entró</th><th>Salió</th><th>Te quedó</th><th>Atenciones</th></tr></thead><tbody>';
+    meses.forEach(function (m) {
+      const saldo = m.ingreso - m.egreso;
+      html += '<tr><td>' + bonito(nombreMes(m.mes)) + (m.mes === hoy ? ' <span style="color:#858581">· en curso</span>' : '') + '</td>' +
+              '<td>' + pesos(m.ingreso) + '</td><td>' + pesos(m.egreso) + '</td>' +
+              '<td class="' + (saldo < 0 ? 'negativo' : '') + '">' + pesos(saldo) + '</td>' +
+              '<td>' + m.atenciones + '</td></tr>';
+    });
+    document.getElementById('tablaMeses').innerHTML = html + '</tbody></table>';
+  }
+
+  /* ---------- lecturas ---------- */
+  function leerMeses(cerrados) {
+    const el = document.getElementById('leerMeses');
+    if (cerrados.length < 2) { el.textContent = ''; return; }
+    const ult = cerrados[cerrados.length - 1];
+    const ant = cerrados[cerrados.length - 2];
+    const dif = ant.ingreso ? ((ult.ingreso - ant.ingreso) / ant.ingreso) * 100 : 0;
+    const rojos = cerrados.filter(function (m) { return m.ingreso - m.egreso < 0; }).length;
+
+    el.innerHTML = 'En ' + nombreMes(ult.mes) + ' entraron <b>' + pesos(ult.ingreso) + '</b>, ' +
+      (dif >= 0 ? 'un <b>' + Math.round(dif) + '% más</b>' : 'un <b>' + Math.abs(Math.round(dif)) + '% menos</b>') +
+      ' que en ' + nombreMes(ant.mes) + '. ' +
+      (rojos === 0
+        ? 'En todos los meses del período te quedó saldo a favor.'
+        : 'En <b>' + rojos + ' de ' + cerrados.length + ' meses</b> gastaste más de lo que entró.');
+  }
+
+  function leerLista(id, lista, total, cola) {
+    const el = document.getElementById(id);
+    if (!lista.length || !total) { el.textContent = ''; return; }
+    const uno = lista[0];
+    const tres = lista.slice(0, 3).reduce(function (s, x) { return s + x.valor; }, 0);
+    el.innerHTML = '<b>' + bonito(uno.nombre) + '</b> es lo más grande: <b>' +
+      Math.round((uno.valor / total) * 100) + '%</b> ' + cola +
+      '. Los tres primeros juntos son el <b>' + Math.round((tres / total) * 100) + '%</b>.';
+  }
+
+  function leerCaja(meses) {
+    const el = document.getElementById('leerCaja');
+    if (!meses.length) { el.textContent = ''; return; }
+    const fin = cajaHasta(meses[meses.length - 1].mes);
+    const dif = fin - cajaHasta(restarUno(meses[0].mes));
+    el.innerHTML = 'Tu caja cerró el período en <b>' + pesos(fin) + '</b>, ' +
+      (dif >= 0 ? 'con <b>' + pesos(dif) + ' más</b>' : 'con <b>' + pesos(Math.abs(dif)) + ' menos</b>') +
+      ' que al empezar.';
+  }
+
+  /* ---------- para revisar ---------- */
+  function paraRevisar(datos, cerrados, t, p) {
+    const puntos = [];
+
+    const sinGastos = datos.meses.filter(function (m) { return m.ingreso > 0 && m.egreso === 0; });
+    if (sinGastos.length) {
+      puntos.push('No hay gastos registrados en <b>' +
+        sinGastos.map(function (m) { return nombreMes(m.mes); }).join(', ') +
+        '</b>. Lo que te quedó en esos meses está incompleto.');
+    }
+
+    if (p.ingreso && p.egreso) {
+      const vi = ((t.ingreso - p.ingreso) / p.ingreso) * 100;
+      const ve = ((t.egreso - p.egreso) / p.egreso) * 100;
+      if (ve > vi + 10) {
+        puntos.push('Tus gastos crecen más rápido que tus ingresos: <b>' + Math.round(ve) +
+          '%</b> contra <b>' + Math.round(vi) + '%</b> frente al año pasado.');
+      }
+    }
+
+    if (cerrados.length >= 4) {
+      const ult = cerrados[cerrados.length - 1];
+      const tres = cerrados.slice(-4, -1);
+      const prom = tres.reduce(function (s, m) { return s + m.ingreso; }, 0) / tres.length;
+      if (prom && ult.ingreso < prom * 0.8) {
+        puntos.push('Los ingresos de <b>' + nombreMes(ult.mes) + '</b> están <b>' +
+          Math.round((1 - ult.ingreso / prom) * 100) + '% por debajo</b> del promedio de los tres meses anteriores.');
+      }
+    }
+
+    const salto = gastoQueSalto(datos.gastos, cerrados);
+    if (salto) {
+      puntos.push('<b>' + bonito(salto.nombre) + '</b> subió a ' + pesos(salto.ultimo) + ' en ' +
+        nombreMes(salto.mes) + ', muy por encima de su promedio de ' + pesos(salto.promedio) + '.');
+    }
+
+    if (t.margen < 0) {
+      puntos.push('En este período gastaste <b>' + pesos(Math.abs(t.saldo)) + ' más</b> de lo que entró.');
+    }
+
+    if (resumen.avisos && resumen.avisos.length) {
+      puntos.push('Hay <b>' + resumen.avisos.length + ' registros</b> con la fecha o el valor mal escritos; quedaron fuera del cálculo. <span>' +
+        resumen.avisos.slice(0, 4).map(function (a) { return a.hoja + ' fila ' + a.fila; }).join(' · ') +
+        (resumen.avisos.length > 4 ? ' …' : '') + '</span>');
+    }
+
+    const caja = document.getElementById('revisar');
+    if (!puntos.length) { caja.classList.add('oculto'); return; }
+    caja.classList.remove('oculto');
+    document.getElementById('listaRevisar').innerHTML =
+      puntos.slice(0, 5).map(function (x) { return '<li>' + x + '</li>'; }).join('');
+  }
+
+  function gastoQueSalto(gastos, cerrados) {
+    if (cerrados.length < 3) return null;
+    const ultimoMes = cerrados[cerrados.length - 1].mes;
+    const porCat = {};
+    gastos.forEach(function (g) {
+      if (!porCat[g.nombre]) porCat[g.nombre] = {};
+      porCat[g.nombre][g.mes] = (porCat[g.nombre][g.mes] || 0) + g.valor;
+    });
+    let peor = null;
+    Object.keys(porCat).forEach(function (nombre) {
+      const meses = porCat[nombre];
+      const ultimo = meses[ultimoMes] || 0;
+      const otros = Object.keys(meses).filter(function (m) { return m !== ultimoMes; });
+      if (otros.length < 2 || ultimo < 500000) return;
+      const prom = otros.reduce(function (s, m) { return s + meses[m]; }, 0) / otros.length;
+      if (prom > 0 && ultimo > prom * 1.6) {
+        const salto = ultimo - prom;
+        if (!peor || salto > peor.salto) peor = { nombre: nombre, ultimo: ultimo, promedio: prom, mes: ultimoMes, salto: salto };
+      }
+    });
+    return peor;
+  }
