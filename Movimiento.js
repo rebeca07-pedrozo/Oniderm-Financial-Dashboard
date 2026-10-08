@@ -9,9 +9,9 @@ function guardarIngreso(datos) {
   if (!datos.paciente)    throw new Error('Falta el nombre del paciente.');
   if (!datos.formaPago)   throw new Error('Falta la forma de pago.');
 
-  const fecha = aFecha(datos.fecha);
+  const fecha = fechaValida(datos.fecha);
   const valor = Number(datos.valor);
-  const aplica = CONFIG.pagosConComision.indexOf(normalizar(datos.formaPago)) >= 0;
+  const aplica = CONFIG.pagosConComision.map(sinTildes).indexOf(sinTildes(datos.formaPago)) >= 0;
   const comision = aplica ? Math.round(valor * CONFIG.comision) : '';
 
   const hoja = getHojaPorFecha(fecha, CONFIG.ingresos);
@@ -40,7 +40,7 @@ function guardarEgreso(datos) {
   if (!datos.concepto)    throw new Error('Falta el concepto del gasto.');
   if (!datos.descripcion) throw new Error('Falta la descripción.');
 
-  const fecha = aFecha(datos.fecha);
+  const fecha = fechaValida(datos.fecha);
   const hoja = getHojaPorFecha(fecha, CONFIG.egresos);
   const fila = {
     fecha: fecha,
@@ -62,9 +62,10 @@ function validarBase(datos) {
   if (!(Number(datos.valor) > 0)) throw new Error('El valor debe ser mayor a cero.');
 }
 
-function aFecha(texto) {
-  const partes = String(texto).split('-');
-  return new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 12, 0, 0);
+function fechaValida(texto) {
+  const fecha = aFecha(texto);
+  if (!fecha) throw new Error('La fecha no es válida.');
+  return fecha;
 }
 
 function getHojaPorFecha(fecha, hojas) {

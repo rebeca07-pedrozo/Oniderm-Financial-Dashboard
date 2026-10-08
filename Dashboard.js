@@ -94,14 +94,6 @@ function codigoLimpio(valor) {
   return String(valor || '').toUpperCase().replace(/\s+/g, '').replace(/O/g, '0');
 }
 
-/** Acepta fecha real o texto tipo 22/09/2025 */
-function aFecha(valor) {
-  if (valor instanceof Date) return valor;
-  const t = String(valor).trim();
-  const p = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  return p ? new Date(Number(p[3]), Number(p[2]) - 1, Number(p[1])) : null;
-}
-
 /** Acepta 210000 y también "$ 210.000,00" */
 function aNumero(valor) {
   if (valor === null || valor === undefined || valor === '') return 0;
