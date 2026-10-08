@@ -106,12 +106,15 @@ function getColumnas(hoja, mapa) {
 
   let mejor = {};
   let puntaje = 0;
+  let filaEncabezado = 0;
   for (let i = 0; i < filas.length; i++) {
     const cols = buscarColumnas(filas[i], mapa);
     const n = Object.keys(cols).length;
-    if (n > puntaje) { mejor = cols; puntaje = n; }
+    if (n > puntaje) { mejor = cols; puntaje = n; filaEncabezado = i + 1; }
   }
   if (!puntaje) throw new Error('No encuentro el encabezado en ' + hoja.getName());
+  // número de la fila de encabezado, sin que cuente como campo
+  Object.defineProperty(mejor, 'filaEncabezado', { value: filaEncabezado, enumerable: false });
   return mejor;
 }
 
