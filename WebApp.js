@@ -1,5 +1,8 @@
-function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
+function doGet(e) {
+  const pagina = HtmlService.createTemplateFromFile('Index');
+  // ?tab=log abre directo en Logística (el botón del correo de alertas usa esto)
+  pagina.tabInicial = (e && e.parameter && e.parameter.tab) === 'log' ? 'log' : '';
+  return pagina
     .evaluate()
     .setTitle(CONFIG.titulo)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');

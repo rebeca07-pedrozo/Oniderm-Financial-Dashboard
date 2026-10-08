@@ -1,0 +1,478 @@
+<script>
+  /* ===================== LOGÍSTICA ===================== */
+  // Reutiliza de Logica.html: hoy(), avisar(), dibujar(), base(), MES_CORTO, GRIS, GRIS_FUERTE, REJILLA.
+
+  const COLOR_ESTADO = {
+    VENCIDO: '#6B6560', ROJO: '#B9736B', AMARILLO: '#D9A441', VERDE: '#4BB69E', SIN_FECHA: '#C9C5BF', NO_APLICA: '#E4E0DA'
+  };
+  const NOMBRE_ESTADO_LOG = {
+    VENCIDO: 'Vencido', ROJO: 'Rojo', AMARILLO: 'Amarillo', VERDE: 'Verde', SIN_FECHA: 'Sin fecha', NO_APLICA: 'No vence'
+  };
+  const CLASE_PUNTO = {
+    VENCIDO: 'vencido', ROJO: 'rojo', AMARILLO: 'amarillo', VERDE: 'verde', SIN_FECHA: 'sin-dato', NO_APLICA: 'sin-dato'
+  };
+
+  let inventario = null;      // respuesta de getTableroInventario
+  let invCatalogo = null;     // respuesta de getCatalogoInventario
+  let tipoInsumo = 'M';
+  let insumoPendiente = null; // datos del formulario mientras se resuelve un duplicado
+  let editorFila = null;      // { id, accion } del editor abierto en la tabla
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarLogistica);
+  else iniciarLogistica();
+
+  function iniciarLogistica() {
+    document.getElementById('l_ingreso').value = hoy();
+    cargarContadorLogistica();
+    if (typeof TAB_INICIAL !== 'undefined' && TAB_INICIAL === 'log') cambiarTab('log');
+  }
+
+  /* ---------- contador en la pestaña ---------- */
+  function cargarContadorLogistica() {
+    google.script.run
+      .withSuccessHandler(pintarContador)
+      .withFailureHandler(function () { /* sin inventario configurado: la pestaña sigue sin número */ })
+      .getContadorLogistica();
+  }
+
+  function pintarContador(n) {
+    const el = document.getElementById('contadorLog');
+    el.textContent = n;
+    el.title = n + ' productos vencidos o a menos de 6 meses de vencer';
+    el.classList.toggle('oculto', !n);
+  }
+
+  /* ---------- carga ---------- */
+  function cargarInventario(forzar) {
+    if (!invCatalogo) cargarCatalogoInventario();
+    if (inventario && !forzar) return;
+    const cargando = document.getElementById('l_cargando');
+    cargando.textContent = 'Cargando inventario…';
+    cargando.classList.remove('oculto');
+    google.script.run
+      .withSuccessHandler(function (r) {
+        inventario = r;
+        inventario.filtradoEnServidor = false;
+        pintarInventario();
+      })
+      .withFailureHandler(function (e) {
+        cargando.textContent = 'No se pudo cargar el inventario: ' + (e && e.message ? e.message : e);
+        document.getElementById('l_contenido').classList.add('oculto');
+      })
+      .getTableroInventario({ registro: valorLog('lf_registro') });
+  }
+
+  function cargarCatalogoInventario() {
+    google.script.run
+      .withSuccessHandler(function (c) {
+        invCatalogo = c;
+        document.getElementById('l_listaProductos').innerHTML = c.productos.map(function (p) {
+          return '<option value="' + esc(p.nombre) + '"></option>';
+        }).join('');
+        document.getElementById('l_listaResponsables').innerHTML = c.responsables.map(function (r) {
+          return '<option value="' + esc(r) + '"></option>';
+        }).join('');
+        llenarOpciones('l_unidad', c.unidades);
+        llenarOpciones('l_ubicacion', c.ubicaciones);
+        llenarOpciones('l_riesgo', [''].concat(c.clasifRiesgo));
+        document.getElementById('lf_ubicacion').innerHTML = '<option value="">Toda ubicación</option>' +
+          c.ubicaciones.map(function (u) { return '<option value="' + esc(u) + '">' + esc(u) + '</option>'; }).join('');
+      })
+      .withFailureHandler(function () { /* el error ya lo muestra el tablero */ })
+      .getCatalogoInventario();
+  }
+
+  function llenarOpciones(id, valores) {
+    document.getElementById(id).innerHTML = valores.map(function (v) {
+      return '<option value="' + esc(v) + '">' + esc(v) + '</option>';
+    }).join('');
+  }
+
+  /* ---------- tablero ---------- */
+  function pintarInventario() {
+    const r = inventario;
+    const t = r.totales;
+    document.getElementById('l_cargando').classList.add('oculto');
+    document.getElementById('l_contenido').classList.remove('oculto');
+
+    textoLog('lk_total', t.registros);
+    textoLog('lk_unidades', t.unidades.toLocaleString('es-CO') + ' unidades' + (t.enCero ? ' · ' + t.enCero + ' en cero' : ''));
+    textoLog('lk_vencidos', t.vencidos);
+    textoLog('lk_rojo', t.rojo);
+    textoLog('lk_amarillo', t.amarillo);
+    textoLog('lk_verde', t.verde);
+    textoLog('lk_sinFecha', t.sinFecha);
+
+    const revisar = document.getElementById('l_revisar');
+    revisar.classList.toggle('oculto', !r.revisar.length);
+    document.getElementById('l_listaRevisar').innerHTML = r.revisar.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('');
+
+    graficoVenceMes(r.porMes);
+    graficoTipos(r.porTipo);
+    textoLog('l_leerMeses', r.lecturaMeses);
+    textoLog('l_leerTipos', r.lecturaTipos);
+
+    // el contador de la pestaña solo se toca con la vista completa de activos
+    if (!r.filtradoEnServidor && valorLog('lf_registro') === 'ACTIVO') pintarContador(t.vencidos + t.rojo);
+
+    pintarTablaInventario();
+  }
+
+  function graficoVenceMes(meses) {
+    const cfg = base();
+    cfg.plugins.tooltip.callbacks = {
+      label: function (c) { return ' ' + c.parsed.y + (c.parsed.y === 1 ? ' producto' : ' productos'); }
+    };
+    cfg.scales = {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: GRIS, font: { size: 11.5 } } },
+      y: { grid: { color: REJILLA }, border: { display: false }, beginAtZero: true,
+           ticks: { color: GRIS, font: { size: 11.5 }, precision: 0, maxTicksLimit: 5 } }
+    };
+    dibujar('gVenceMes', {
+      type: 'bar',
+      data: {
+        labels: meses.map(function (m) { return MES_CORTO[Number(m.mes.substring(5, 7)) - 1] + ' ' + m.mes.substring(2, 4); }),
+        datasets: [{
+          data: meses.map(function (m) { return m.cantidad; }),
+          backgroundColor: meses.map(function (m) { return COLOR_ESTADO[m.estado]; }),
+          borderRadius: 5, maxBarThickness: 26
+        }]
+      },
+      options: cfg
+    });
+  }
+
+  function graficoTipos(porTipo) {
+    const campos = [['VENCIDO', 'vencidos'], ['ROJO', 'rojo'], ['AMARILLO', 'amarillo'], ['VERDE', 'verde'], ['SIN_FECHA', 'sinFecha'], ['NO_APLICA', 'noAplica']];
+    const cfg = base();
+    cfg.indexAxis = 'y';
+    cfg.plugins.legend = {
+      display: true, position: 'bottom',
+      labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, padding: 14, color: GRIS, font: { size: 11.5 } }
+    };
+    cfg.plugins.tooltip.callbacks = {
+      label: function (c) { return ' ' + c.dataset.label + ': ' + c.parsed.x; }
+    };
+    cfg.scales = {
+      x: { stacked: true, grid: { color: REJILLA }, border: { display: false }, ticks: { color: GRIS, font: { size: 11.5 }, precision: 0 } },
+      y: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: GRIS_FUERTE, font: { size: 12 } } }
+    };
+    dibujar('gTipos', {
+      type: 'bar',
+      data: {
+        labels: ['Medicamentos', 'Dispositivos'],
+        datasets: campos.map(function (c) {
+          return {
+            label: NOMBRE_ESTADO_LOG[c[0]], data: [porTipo.M[c[1]], porTipo.DM[c[1]]],
+            backgroundColor: COLOR_ESTADO[c[0]], borderColor: '#FFFFFF', borderWidth: 1, maxBarThickness: 30
+          };
+        })
+      },
+      options: cfg
+    });
+  }
+
+  /* ---------- tabla (filtra en el navegador) ---------- */
+  function filtrarEstado(estado) {
+    const sel = document.getElementById('lf_estado');
+    sel.value = sel.value === estado ? '' : estado;
+    pintarTablaInventario();
+    document.getElementById('l_tabla').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function filasFiltradas() {
+    const tipo = valorLog('lf_tipo'), ubicacion = valorLog('lf_ubicacion'), estado = valorLog('lf_estado');
+    const buscado = sinTildesLog(valorLog('lf_texto'));
+    return inventario.filas.filter(function (f) {
+      if (tipo && f.tipo !== tipo) return false;
+      if (ubicacion && f.ubicacion !== ubicacion) return false;
+      if (estado && f.estado !== estado) return false;
+      if (buscado && sinTildesLog([f.producto, f.lote, f.laboratorio, f.invima].join(' ')).indexOf(buscado) < 0) return false;
+      return true;
+    });
+  }
+
+  function pintarTablaInventario() {
+    if (!inventario) return;
+    const filas = filasFiltradas();
+    const estado = valorLog('lf_estado');
+    document.querySelectorAll('.kpi-estado').forEach(function (k) { k.classList.toggle('elegida', k.dataset.estado === estado); });
+
+    const recibidas = inventario.filas.length;
+    textoLog('l_conteoTabla', filas.length === recibidas
+      ? (inventario.hayMas ? 'primeros ' + recibidas + ' de ' + inventario.total : recibidas + ' registros')
+      : filas.length + ' de ' + recibidas + (inventario.hayMas ? ' recibidos (hay ' + inventario.total + ' en total)' : ''));
+    document.getElementById('l_verMas').classList.toggle('oculto', !inventario.hayMas);
+
+    if (!filas.length) {
+      document.getElementById('l_tabla').innerHTML = '<p class="cargando">No hay registros con estos filtros.</p>';
+      return;
+    }
+
+    let html = '<table class="tabla inventario"><thead><tr>' +
+      '<th>Estado</th><th>Producto</th><th>Tipo</th><th>Lote</th><th class="num">Cantidad</th>' +
+      '<th>Vencimiento</th><th>Tiempo restante</th><th>Ubicación</th><th>Acciones</th></tr></thead><tbody>';
+    filas.forEach(function (f) {
+      const activa = f.estadoRegistro === 'ACTIVO';
+      const clases = (f.estado === 'VENCIDO' ? 'vencida ' : '') + (activa ? '' : 'inactiva');
+      html += '<tr class="' + clases + '">' +
+        '<td><span class="estado-celda"><i class="punto ' + CLASE_PUNTO[f.estado] + '"></i>' + NOMBRE_ESTADO_LOG[f.estado] + '</span></td>' +
+        '<td class="producto">' + esc(f.producto) + (f.laboratorio ? '<br><span class="suave">' + esc(f.laboratorio) + '</span>' : '') + '</td>' +
+        '<td><span class="etiqueta">' + f.tipo + '</span></td>' +
+        '<td class="lote">' + esc(f.lote) + '</td>' +
+        '<td class="num">' + f.cantidad + ' <span class="suave">' + esc(f.unidad) + '</span></td>' +
+        '<td>' + (f.vence ? fechaCortaLog(f.vence) : '<span class="suave">—</span>') + '</td>' +
+        '<td>' + esc(f.textoRestante) + '</td>' +
+        '<td>' + esc(f.ubicacion) + '</td>' +
+        '<td>' + (activa ? botonesFila(f) : '<span class="suave">' + esc(f.estadoRegistro.toLowerCase()) + '</span>') + '</td>' +
+        '</tr>';
+      if (editorFila && editorFila.id === f.id) html += editorHtml(f, editorFila.accion);
+    });
+    document.getElementById('l_tabla').innerHTML = html + '</tbody></table>';
+  }
+
+  function botonesFila(f) {
+    let b = '';
+    if (f.estado === 'SIN_FECHA') b += boton(f.id, 'fecha', 'Completar fecha');
+    if (f.cantidad === 0) b += boton(f.id, 'cantidad', 'Cantidad');
+    b += boton(f.id, 'agotado', 'Agotado');
+    b += boton(f.id, 'descartar', 'Descartar');
+    return '<div class="acciones-fila">' + b + '</div>';
+  }
+
+  function boton(id, accion, texto) {
+    return '<button type="button" class="boton-chico" onclick="abrirEditor(' + id + ',\'' + accion + '\')">' + texto + '</button>';
+  }
+
+  function abrirEditor(id, accion) {
+    editorFila = (editorFila && editorFila.id === id && editorFila.accion === accion) ? null : { id: id, accion: accion };
+    pintarTablaInventario();
+    const primero = document.querySelector('.editor input');
+    if (primero) primero.focus();
+  }
+
+  function editorHtml(f, accion) {
+    let cuerpo;
+    if (accion === 'fecha') {
+      cuerpo = 'Vence el <input type="date" id="ed_fecha" aria-label="Fecha de vencimiento">' +
+        '<label class="casilla"><input type="checkbox" id="ed_noVence"> No vence</label>' +
+        '<button type="button" class="boton-chico primario" onclick="guardarEditor()">Guardar fecha</button>';
+    } else if (accion === 'cantidad') {
+      cuerpo = 'Cantidad real <input type="number" id="ed_cantidad" min="0" value="' + f.cantidad + '" aria-label="Cantidad"> ' + esc(f.unidad) +
+        '<button type="button" class="boton-chico primario" onclick="guardarEditor()">Guardar cantidad</button>';
+    } else {
+      const descartar = accion === 'descartar';
+      cuerpo = (descartar ? 'Descartar ' : 'Marcar como agotado ') + '<b>' + esc(f.producto) + '</b> lote ' + esc(f.lote) +
+        '<input type="text" id="ed_motivo" aria-label="Motivo" placeholder="' + (descartar ? 'Motivo y disposición final (ej. vencido, a incineración)' : 'Motivo (opcional)') + '">' +
+        '<button type="button" class="boton-chico primario" onclick="guardarEditor()">Confirmar</button>';
+    }
+    return '<tr class="editor-fila"><td colspan="9"><div class="editor">' + cuerpo +
+      '<button type="button" class="boton-chico suave" onclick="abrirEditor(' + f.id + ',\'' + accion + '\')">Cancelar</button></div></td></tr>';
+  }
+
+  function guardarEditor() {
+    const e = editorFila;
+    if (!e) return;
+    const llamada = google.script.run
+      .withSuccessHandler(function (r) {
+        editorFila = null;
+        avisar(r.mensaje, false);
+        cargarInventario(true);
+        cargarContadorLogistica();
+      })
+      .withFailureHandler(function (err) {
+        botonesEditor(false);
+        avisar(err.message, true);
+      });
+    botonesEditor(true);
+
+    if (e.accion === 'fecha') {
+      const noVence = document.getElementById('ed_noVence').checked;
+      const fecha = document.getElementById('ed_fecha').value;
+      if (!noVence && !fecha) { botonesEditor(false); return avisar('Elige la fecha o marca "No vence".', true); }
+      llamada.completarVencimiento(e.id, fecha, noVence);
+    } else if (e.accion === 'cantidad') {
+      llamada.corregirCantidad(e.id, document.getElementById('ed_cantidad').value);
+    } else {
+      const motivo = document.getElementById('ed_motivo').value.trim();
+      if (e.accion === 'descartar' && !motivo) { botonesEditor(false); return avisar('Escribe el motivo del descarte: queda en el histórico.', true); }
+      llamada.darDeBaja(e.id, e.accion === 'descartar' ? 'DESCARTADO' : 'AGOTADO', motivo);
+    }
+  }
+
+  function botonesEditor(bloqueado) {
+    document.querySelectorAll('.editor button').forEach(function (b) { b.disabled = bloqueado; });
+  }
+
+  /** Cuando hay más de 150 registros: se le piden al servidor los que cumplen los filtros actuales. */
+  function pedirResto() {
+    const filtros = {
+      tipo: valorLog('lf_tipo') || null, ubicacion: valorLog('lf_ubicacion') || null,
+      estado: valorLog('lf_estado') || null, texto: valorLog('lf_texto') || null,
+      registro: valorLog('lf_registro')
+    };
+    document.getElementById('l_verMas').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        document.getElementById('l_verMas').disabled = false;
+        inventario = r;
+        inventario.filtradoEnServidor = true;
+        pintarInventario();
+      })
+      .withFailureHandler(function (e) { document.getElementById('l_verMas').disabled = false; avisar(e.message, true); })
+      .getTableroInventario(filtros);
+  }
+
+  /* ---------- formulario ---------- */
+  function abrirFormularioInsumo() {
+    const form = document.getElementById('l_form');
+    const abrir = form.classList.contains('oculto');
+    form.classList.toggle('oculto', !abrir);
+    document.getElementById('l_abrir').setAttribute('aria-expanded', abrir);
+    document.getElementById('l_abrir').textContent = abrir ? 'Cerrar formulario' : '+ Registrar ingreso';
+    if (abrir) document.getElementById('l_producto').focus();
+  }
+
+  function cerrarFormularioInsumo() {
+    if (!document.getElementById('l_form').classList.contains('oculto')) abrirFormularioInsumo();
+    cancelarDuplicado();
+  }
+
+  function elegirTipo(tipo) {
+    tipoInsumo = tipo;
+    document.getElementById('l_tipoM').classList.toggle('activa', tipo === 'M');
+    document.getElementById('l_tipoDM').classList.toggle('activa', tipo === 'DM');
+    // nunca los dos juegos de campos a la vez
+    document.querySelectorAll('.solo-m').forEach(function (el) { el.classList.toggle('oculto', tipo !== 'M'); });
+    document.querySelectorAll('.solo-dm').forEach(function (el) { el.classList.toggle('oculto', tipo !== 'DM'); });
+  }
+
+  /** Al elegir un producto ya registrado, completa lo que esté vacío con lo que se sabe de él. */
+  function productoElegido() {
+    if (!invCatalogo) return;
+    const nombre = sinTildesLog(valorLog('l_producto'));
+    const p = invCatalogo.productos.filter(function (x) { return sinTildesLog(x.nombre) === nombre; })[0];
+    if (!p) return;
+    elegirTipo(p.tipo);
+    if (p.unidad) {
+      const sel = document.getElementById('l_unidad');
+      if (![].some.call(sel.options, function (o) { return o.value === p.unidad; })) sel.insertAdjacentHTML('beforeend', '<option>' + esc(p.unidad) + '</option>');
+      sel.value = p.unidad;
+    }
+    [['l_laboratorio', p.laboratorio], ['l_presentacion', p.presentacion], ['l_invima', p.invima],
+     ['l_principio', p.principio], ['l_concentracion', p.concentracion], ['l_forma', p.forma], ['l_marca', p.marca]]
+      .forEach(function (x) { const el = document.getElementById(x[0]); if (!el.value && x[1]) el.value = x[1]; });
+  }
+
+  /** Muestra en vivo en qué estado entraría el producto. Misma regla que el servidor. */
+  function pistaVencimiento() {
+    const noVence = document.getElementById('l_noVence').checked;
+    const input = document.getElementById('l_vence');
+    input.disabled = noVence;
+    const pista = document.getElementById('l_pistaVence');
+    const calc = estadoLocal(noVence ? null : input.value, noVence);
+    pista.className = 'pista estado-' + calc.estado;
+    if (calc.estado === 'NO_APLICA') pista.textContent = 'Quedará como "no vence": no entra al semáforo.';
+    else if (calc.estado === 'SIN_FECHA') pista.textContent = '';
+    else if (calc.estado === 'VENCIDO') pista.textContent = 'Ojo: este producto ya está vencido (' + textoRestanteLog(calc.dias).toLowerCase() + ').';
+    else pista.textContent = 'Este producto entraría en ' + NOMBRE_ESTADO_LOG[calc.estado].toLowerCase() + ': vence ' + textoRestanteLog(calc.dias).toLowerCase() + '.';
+  }
+
+  function estadoLocal(venceISO, noVence) {
+    if (noVence) return { estado: 'NO_APLICA', dias: null };
+    if (!venceISO) return { estado: 'SIN_FECHA', dias: null };
+    const a = hoy().split('-'), b = venceISO.split('-');
+    const dias = Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000);
+    const meses = dias / 30.44;
+    return { estado: dias < 0 ? 'VENCIDO' : meses < 6 ? 'ROJO' : meses < 12 ? 'AMARILLO' : 'VERDE', dias: dias };
+  }
+
+  function textoRestanteLog(dias) {
+    if (dias === 0) return 'Hoy';
+    const abs = Math.abs(dias), meses = Math.round(abs / 30.44), anios = Math.floor(abs / 365.25);
+    const cuanto = abs < 60 ? abs + (abs === 1 ? ' día' : ' días') : meses < 24 ? meses + ' meses' : anios + ' años';
+    return dias < 0 ? 'Venció hace ' + cuanto : 'En ' + cuanto;
+  }
+
+  function datosFormularioInsumo() {
+    return {
+      tipo: tipoInsumo,
+      producto: valorLog('l_producto'), lote: valorLog('l_lote'),
+      cantidad: valorLog('l_cantidad'), unidad: valorLog('l_unidad'),
+      vence: valorLog('l_vence'), noVence: document.getElementById('l_noVence').checked,
+      ingreso: valorLog('l_ingreso'), ubicacion: valorLog('l_ubicacion'), responsable: valorLog('l_responsable'),
+      invima: valorLog('l_invima'), laboratorio: valorLog('l_laboratorio'), presentacion: valorLog('l_presentacion'),
+      condiciones: valorLog('l_condiciones'), observaciones: valorLog('l_observaciones'),
+      principio: valorLog('l_principio'), concentracion: valorLog('l_concentracion'), forma: valorLog('l_forma'),
+      marca: valorLog('l_marca'), serie: valorLog('l_serie'), riesgo: valorLog('l_riesgo')
+    };
+  }
+
+  function guardarInsumoForm() {
+    const datos = datosFormularioInsumo();
+    bloquearInsumo(true);
+    google.script.run
+      .withSuccessHandler(function (r) {
+        bloquearInsumo(false);
+        if (r.duplicado) {
+          insumoPendiente = Object.assign(datos, { idExistente: r.existente.id });
+          document.getElementById('l_duplicadoTexto').textContent = r.mensaje;
+          document.getElementById('l_duplicado').classList.remove('oculto');
+          return;
+        }
+        insumoGuardado(r);
+      })
+      .withFailureHandler(function (e) { bloquearInsumo(false); avisar(e.message, true); })
+      .guardarInsumo(datos);
+  }
+
+  function resolverDuplicado(accion) {
+    if (!insumoPendiente) return;
+    bloquearInsumo(true);
+    google.script.run
+      .withSuccessHandler(function (r) { bloquearInsumo(false); insumoGuardado(r); })
+      .withFailureHandler(function (e) { bloquearInsumo(false); avisar(e.message, true); })
+      .confirmarInsumo(insumoPendiente, accion);
+  }
+
+  function cancelarDuplicado() {
+    insumoPendiente = null;
+    document.getElementById('l_duplicado').classList.add('oculto');
+  }
+
+  function insumoGuardado(r) {
+    avisar(r.mensaje, false);
+    cancelarDuplicado();
+    limpiarFormularioInsumo();
+    cerrarFormularioInsumo();
+    invCatalogo = null;          // el producto nuevo entra al autocompletado
+    cargarInventario(true);
+    cargarContadorLogistica();
+  }
+
+  /** Deja tipo, ubicación, responsable y fecha de ingreso: suelen repetirse al registrar varios. */
+  function limpiarFormularioInsumo() {
+    ['l_producto', 'l_lote', 'l_vence', 'l_invima', 'l_laboratorio', 'l_presentacion', 'l_condiciones', 'l_observaciones',
+     'l_principio', 'l_concentracion', 'l_forma', 'l_marca', 'l_serie', 'l_riesgo'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('l_cantidad').value = 1;
+    document.getElementById('l_noVence').checked = false;
+    pistaVencimiento();
+  }
+
+  function bloquearInsumo(activo) {
+    document.querySelectorAll('#l_form button').forEach(function (b) { b.disabled = activo; });
+  }
+
+  /* ---------- utilidades ---------- */
+  function valorLog(id) { return document.getElementById(id).value.trim(); }
+  function textoLog(id, valor) { document.getElementById(id).textContent = valor; }
+  function fechaCortaLog(iso) { const p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function sinTildesLog(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+  function esc(t) {
+    return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+</script>

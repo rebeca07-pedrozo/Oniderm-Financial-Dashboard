@@ -25,6 +25,7 @@
     <button id="tabDash" class="tab" onclick="cambiarTab('dash')">Dashboard</button>
     <button id="tabIngreso" class="tab activa" onclick="cambiarTab('ingreso')">Ingreso</button>
     <button id="tabEgreso" class="tab" onclick="cambiarTab('egreso')">Egreso</button>
+    <button id="tabLog" class="tab" onclick="cambiarTab('log')">Logística <span id="contadorLog" class="contador oculto"></span></button>
   </nav>
 
   <!-- ====== INGRESO ====== -->
@@ -214,10 +215,170 @@
 
   </section>
 
+  <!-- ====== LOGÍSTICA ====== -->
+  <section id="formLog" class="oculto">
+
+    <header class="tablero-top">
+      <div>
+        <h2 class="titulo-tablero">Logística</h2>
+        <p class="sub-tablero">Insumos y vencimientos</p>
+      </div>
+      <button id="l_abrir" class="boton-registrar" onclick="abrirFormularioInsumo()">+ Registrar ingreso</button>
+    </header>
+
+    <!-- formulario, colapsado por defecto -->
+    <section id="l_form" class="tarjeta form-insumo oculto">
+      <div class="seg" role="group" aria-label="Tipo">
+        <button type="button" id="l_tipoM" class="seg-op activa" onclick="elegirTipo('M')">Medicamento</button>
+        <button type="button" id="l_tipoDM" class="seg-op" onclick="elegirTipo('DM')">Dispositivo</button>
+      </div>
+
+      <div class="grid">
+        <label class="campo grande">
+          <span>Producto</span>
+          <input list="l_listaProductos" id="l_producto" placeholder="Escribe para buscar lo ya registrado" onchange="productoElegido()">
+          <datalist id="l_listaProductos"></datalist>
+        </label>
+        <label class="campo grande">
+          <span>Lote</span>
+          <input type="text" id="l_lote" placeholder="Si de verdad no tiene: SIN LOTE">
+        </label>
+        <label class="campo chico">
+          <span>Cantidad</span>
+          <input type="number" id="l_cantidad" value="1" min="1">
+        </label>
+        <label class="campo chico">
+          <span>Unidad</span>
+          <select id="l_unidad"></select>
+        </label>
+        <div class="campo grande">
+          <span>Fecha de vencimiento</span>
+          <div class="fila-vence">
+            <input type="date" id="l_vence" aria-label="Fecha de vencimiento" oninput="pistaVencimiento()">
+            <label class="casilla"><input type="checkbox" id="l_noVence" onchange="pistaVencimiento()"> No vence</label>
+          </div>
+          <small id="l_pistaVence" class="pista"></small>
+        </div>
+        <label class="campo medio">
+          <span>Fecha de ingreso</span>
+          <input type="date" id="l_ingreso">
+        </label>
+        <label class="campo medio">
+          <span>Ubicación</span>
+          <select id="l_ubicacion"></select>
+        </label>
+        <label class="campo medio">
+          <span>Responsable</span>
+          <input list="l_listaResponsables" id="l_responsable" placeholder="Quién registra">
+          <datalist id="l_listaResponsables"></datalist>
+        </label>
+      </div>
+
+      <details class="mas-detalles">
+        <summary>Más detalles <em>(opcional)</em></summary>
+        <div class="grid">
+          <label class="campo medio"><span>Registro INVIMA</span><input type="text" id="l_invima"></label>
+          <label class="campo medio"><span>Laboratorio</span><input type="text" id="l_laboratorio"></label>
+          <label class="campo medio"><span>Presentación</span><input type="text" id="l_presentacion"></label>
+
+          <label class="campo medio solo-m"><span>Principio activo</span><input type="text" id="l_principio"></label>
+          <label class="campo medio solo-m"><span>Concentración</span><input type="text" id="l_concentracion"></label>
+          <label class="campo medio solo-m"><span>Forma farmacéutica</span><input type="text" id="l_forma"></label>
+
+          <label class="campo medio solo-dm oculto"><span>Marca</span><input type="text" id="l_marca"></label>
+          <label class="campo medio solo-dm oculto"><span>Serie</span><input type="text" id="l_serie"></label>
+          <label class="campo medio solo-dm oculto"><span>Clasificación de riesgo</span><select id="l_riesgo"></select></label>
+
+          <label class="campo total"><span>Condiciones de almacenamiento</span><input type="text" id="l_condiciones"></label>
+          <label class="campo total"><span>Observaciones</span><input type="text" id="l_observaciones"></label>
+        </div>
+      </details>
+
+      <div id="l_duplicado" class="duplicado oculto">
+        <p id="l_duplicadoTexto"></p>
+        <div class="acciones-dup">
+          <button type="button" class="boton-chico primario" onclick="resolverDuplicado('sumar')">Sumar al existente</button>
+          <button type="button" class="boton-chico" onclick="resolverDuplicado('nuevo')">Crear registro aparte</button>
+          <button type="button" class="boton-chico suave" onclick="cancelarDuplicado()">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="acciones-form">
+        <button type="button" class="boton-chico suave" onclick="cerrarFormularioInsumo()">Cancelar</button>
+        <button type="button" id="l_guardar" class="guardar insumo" onclick="guardarInsumoForm()">Guardar ingreso</button>
+      </div>
+    </section>
+
+    <!-- filtros: se aplican en el navegador sobre las filas ya recibidas -->
+    <div class="filtros-log">
+      <select id="lf_tipo" onchange="pintarTablaInventario()">
+        <option value="">Todo tipo</option>
+        <option value="M">Medicamentos</option>
+        <option value="DM">Dispositivos</option>
+      </select>
+      <select id="lf_ubicacion" onchange="pintarTablaInventario()"><option value="">Toda ubicación</option></select>
+      <select id="lf_estado" onchange="pintarTablaInventario()">
+        <option value="">Todo estado</option>
+        <option value="VENCIDO">Vencidos</option>
+        <option value="ROJO">Rojo (menos de 6 meses)</option>
+        <option value="AMARILLO">Amarillo (6 a 12 meses)</option>
+        <option value="VERDE">Verde (más de 12 meses)</option>
+        <option value="SIN_FECHA">Sin fecha</option>
+        <option value="NO_APLICA">No vence</option>
+      </select>
+      <select id="lf_registro" onchange="cargarInventario(true)">
+        <option value="ACTIVO">Solo activos</option>
+        <option value="TODOS">Incluir agotados y descartados</option>
+      </select>
+      <input type="search" id="lf_texto" placeholder="Buscar producto, lote o INVIMA…" oninput="pintarTablaInventario()">
+      <button class="recargar" onclick="cargarInventario(true)" title="Volver a leer la hoja">↻</button>
+    </div>
+
+    <p id="l_cargando" class="cargando">Cargando inventario…</p>
+
+    <div id="l_contenido" class="oculto">
+      <section class="kpis seis">
+        <article class="kpi"><span class="kpi-nombre">Registros</span><strong id="lk_total">—</strong><em id="lk_unidades" class="kpi-cambio"></em></article>
+        <article class="kpi kpi-estado" data-estado="VENCIDO" onclick="filtrarEstado('VENCIDO')"><span class="kpi-nombre"><i class="punto vencido"></i>Vencidos</span><strong id="lk_vencidos">—</strong><em class="kpi-cambio">acción inmediata</em></article>
+        <article class="kpi kpi-estado" data-estado="ROJO" onclick="filtrarEstado('ROJO')"><span class="kpi-nombre"><i class="punto rojo"></i>Rojo</span><strong id="lk_rojo">—</strong><em class="kpi-cambio">menos de 6 meses</em></article>
+        <article class="kpi kpi-estado" data-estado="AMARILLO" onclick="filtrarEstado('AMARILLO')"><span class="kpi-nombre"><i class="punto amarillo"></i>Amarillo</span><strong id="lk_amarillo">—</strong><em class="kpi-cambio">6 a 12 meses</em></article>
+        <article class="kpi kpi-estado" data-estado="VERDE" onclick="filtrarEstado('VERDE')"><span class="kpi-nombre"><i class="punto verde"></i>Verde</span><strong id="lk_verde">—</strong><em class="kpi-cambio">más de 12 meses</em></article>
+        <article class="kpi kpi-estado" data-estado="SIN_FECHA" onclick="filtrarEstado('SIN_FECHA')"><span class="kpi-nombre"><i class="punto sin-dato"></i>Sin fecha</span><strong id="lk_sinFecha">—</strong><em class="kpi-cambio enlace">ver y completar →</em></article>
+      </section>
+
+      <section id="l_revisar" class="revisar oculto">
+        <h2>Para revisar</h2>
+        <ul id="l_listaRevisar"></ul>
+      </section>
+
+      <div class="dos-paneles">
+        <section class="panel">
+          <h2>Vencimientos en los próximos 12 meses</h2>
+          <div class="lienzo"><canvas id="gVenceMes"></canvas></div>
+          <p class="lectura" id="l_leerMeses"></p>
+        </section>
+        <section class="panel">
+          <h2>Medicamentos y dispositivos por estado</h2>
+          <div class="lienzo"><canvas id="gTipos"></canvas></div>
+          <p class="lectura" id="l_leerTipos"></p>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Inventario por prioridad <span id="l_conteoTabla" class="conteo-tabla"></span></h2>
+        <div class="tabla-scroll"><div id="l_tabla"></div></div>
+        <button id="l_verMas" class="boton-chico ver-mas oculto" onclick="pedirResto()">Ver el resto en el servidor con estos filtros</button>
+      </section>
+    </div>
+
+  </section>
+
 </div>
 
 <div id="aviso" class="aviso"></div>
 
+<script>var TAB_INICIAL = <?!= JSON.stringify(tabInicial || '') ?>;</script>
 <?!= incluir('Logica'); ?>
+<?!= incluir('LogicaLogistica'); ?>
 </body>
 </html>

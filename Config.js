@@ -45,6 +45,83 @@ const COLS_EGRESO = {
   anio:          ['AÑO']
 };
 
+/* ===================== LOGÍSTICA ===================== */
+
+const CONFIG_INV = {
+  hoja: 'INVENTARIO',
+  zona: 'America/Bogota',
+  mesesRojo: 6,           // menos de 6 meses para vencer: rojo
+  mesesAmarillo: 12,      // entre 6 y 12: amarillo; más: verde
+  maxFilas: 150,          // filas que se mandan al navegador de una vez
+  cacheSegundos: 600,     // 10 minutos
+  horaRevision: 7,        // hora del correo diario
+  ubicaciones: ['Almacén', 'Botiquín', 'Kit derrames'],
+  unidades: ['unidades', 'ml', 'g', 'mg', 'pares', 'cajas', 'frascos', 'sobres', 'rollos', 'paquetes'],
+  clasifRiesgo: ['I', 'IIA', 'IIB', 'III']
+};
+
+// Encabezados de la hoja INVENTARIO, en orden. La hoja se lee por nombre de encabezado.
+const COLS_INVENTARIO = [
+  'ID', 'FECHA_REGISTRO', 'FECHA_INGRESO', 'TIPO', 'UBICACION', 'PRODUCTO', 'LOTE',
+  'CANTIDAD', 'UNIDAD', 'FECHA_VENCIMIENTO', 'NO_VENCE', 'REGISTRO_INVIMA', 'LABORATORIO',
+  'PRESENTACION', 'PRINCIPIO_ACTIVO', 'CONCENTRACION', 'FORMA_FARMACEUTICA', 'MARCA', 'SERIE',
+  'CLASIF_RIESGO', 'CONDICIONES_ALMACEN', 'RESPONSABLE', 'OBSERVACIONES', 'ESTADO_REGISTRO',
+  'FECHA_BAJA', 'ULTIMO_ESTADO'
+];
+
+// Estados del semáforo, de más grave a menos. El orden define la prioridad en la tabla.
+const ESTADOS_SEMAFORO = ['VENCIDO', 'ROJO', 'AMARILLO', 'VERDE', 'SIN_FECHA', 'NO_APLICA'];
+
+/**
+ * Libro de inventario (distinto al de finanzas). Su ID va en Script Properties: ID_LIBRO_INVENTARIO.
+ */
+function getLibroInventario() {
+  const id = PropertiesService.getScriptProperties().getProperty('ID_LIBRO_INVENTARIO');
+  if (!id) throw new Error('Falta la propiedad ID_LIBRO_INVENTARIO en la configuración del proyecto.');
+  try {
+    return SpreadsheetApp.openById(id);
+  } catch (e) {
+    let tipo = '';
+    try { tipo = DriveApp.getFileById(id).getMimeType(); } catch (e2) { /* sin acceso al archivo */ }
+    if (/excel|spreadsheetml/i.test(tipo)) {
+      throw new Error('El ID apunta a un archivo Excel, no a un Google Sheet. Conviértelo con ' +
+                      'Archivo → Guardar como Hojas de cálculo de Google y guarda el ID nuevo.');
+    }
+    throw new Error('No pude abrir el libro de inventario (ID ' + id + '): ' + e.message);
+  }
+}
+
+/**
+ * Columnas de una hoja con encabezados exactos en la fila 1 (como INVENTARIO).
+ * Devuelve { NOMBRE: númeroDeColumna }. Ignora mayúsculas, tildes y espacios.
+ */
+function getColumnasExactas(hoja, nombres) {
+  const encabezado = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1)).getValues()[0];
+  const cols = {};
+  encabezado.forEach(function (texto, i) {
+    const limpio = sinTildes(texto).replace(/ /g, '_');
+    nombres.forEach(function (n) { if (limpio === n && !cols[n]) cols[n] = i + 1; });
+  });
+  const faltan = nombres.filter(function (n) { return !cols[n]; });
+  if (faltan.length) throw new Error('A la hoja ' + hoja.getName() + ' le faltan las columnas: ' + faltan.join(', '));
+  return cols;
+}
+
+/** Columnas de INVENTARIO que son texto aunque parezcan número o fecha (lote 0199060, 09-10-2025). */
+const COLS_TEXTO_INVENTARIO = ['LOTE', 'REGISTRO_INVIMA', 'SERIE'];
+
+/** Valor de celda como texto. Si Sheets/Excel lo convirtió en fecha, se muestra dd/mm/aaaa. */
+function textoCelda(valor) {
+  if (valor === null || valor === undefined) return '';
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? '' : Utilities.formatDate(valor, CONFIG_INV.zona, 'dd/MM/yyyy');
+  return String(valor).trim();
+}
+
+/** Fecha como 'yyyy-MM-dd' en una zona horaria (por defecto la de Bogotá). */
+function fechaISO(fecha, zona) {
+  return Utilities.formatDate(fecha, zona || CONFIG_INV.zona, 'yyyy-MM-dd');
+}
+
 const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
                'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
 
@@ -57,10 +134,13 @@ function getLibro() {
   return libro;
 }
 
-/** Busca la hoja ignorando mayúsculas y espacios de más (la del II semestre tiene un espacio al inicio). */
-function getHoja(nombre) {
+/**
+ * Busca la hoja ignorando mayúsculas y espacios de más (la del II semestre tiene un espacio al inicio).
+ * Sin `libro` busca en el de ingresos y egresos; para inventario se pasa getLibroInventario().
+ */
+function getHoja(nombre, libro) {
   const buscado = normalizar(nombre);
-  const hojas = getLibro().getSheets();
+  const hojas = (libro || getLibro()).getSheets();
   for (let i = 0; i < hojas.length; i++) {
     if (normalizar(hojas[i].getName()) === buscado) return hojas[i];
   }

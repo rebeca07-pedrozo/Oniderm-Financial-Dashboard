@@ -73,14 +73,15 @@
 
     function cambiarTab(tab) {
     tabActual = tab;
-    ['Ingreso', 'Egreso', 'Dash'].forEach(function (t) {
+    ['Ingreso', 'Egreso', 'Dash', 'Log'].forEach(function (t) {
       const activa = t.toLowerCase() === tab;
       document.getElementById('tab' + t).classList.toggle('activa', activa);
       document.getElementById('form' + t).classList.toggle('oculto', !activa);
     });
     const hayRecientes = document.getElementById('listaRecientes').children.length > 0;
-    document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || !hayRecientes);
+    document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || tab === 'log' || !hayRecientes);
     if (tab === 'dash') cargarDashboard();
+    if (tab === 'log') cargarInventario();
   }
 
   function verFactura() {

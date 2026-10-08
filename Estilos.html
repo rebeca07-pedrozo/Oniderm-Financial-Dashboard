@@ -25,6 +25,12 @@
     --egreso: var(--beige);
     --ok: var(--verde);
     --error: var(--alerta);
+
+    /* semáforo de logística */
+    --amarillo: #D9A441;   /* ámbar apagado */
+    --rojo: var(--alerta); /* rojo desaturado */
+    --vencido: #6B6560;    /* gris oscuro cálido */
+    --sin-dato: #C9C5BF;   /* gris claro */
   }
 
   * { box-sizing: border-box; }
@@ -155,6 +161,7 @@
   }
   .panel h2 { margin: 0 0 18px; font-size: 14px; font-weight: 600; }
   .dos-paneles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .dos-paneles > * { min-width: 0; } /* si no, el canvas del gráfico no deja encoger la columna */
   .lienzo { position: relative; height: 240px; }
   .lienzo.alto { height: 300px; }
   .lectura { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--verde-borde); font-size: 13.5px; color: var(--texto-suave); }
@@ -168,11 +175,104 @@
   .tabla tbody tr:hover { background: var(--verde-muy-claro); }
   .negativo { color: var(--alerta); }
 
+  /* ---------- logística ---------- */
+  .contador {
+    display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 10px;
+    background: #F3E6E4; color: var(--rojo); font-size: 12px; font-weight: 600; line-height: 19px;
+  }
+  .contador.oculto { display: none; }
+
+  .boton-registrar {
+    padding: 10px 16px; border: 0; border-radius: 11px; background: var(--verde); color: #fff;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .boton-registrar[aria-expanded="true"] { background: var(--blanco); color: var(--texto-suave); border: 1px solid var(--verde-borde); }
+
+  .form-insumo { margin-bottom: 16px; }
+  .seg { display: inline-flex; padding: 3px; background: var(--crema); border-radius: 11px; margin-bottom: 18px; }
+  .seg-op {
+    padding: 8px 18px; border: 0; border-radius: 9px; background: transparent;
+    font: inherit; font-size: 14px; font-weight: 500; color: var(--texto-suave); cursor: pointer;
+  }
+  .seg-op.activa { background: var(--blanco); color: var(--texto); box-shadow: 0 1px 2px rgba(74, 74, 70, 0.12); }
+
+  .fila-vence { display: flex; gap: 10px; align-items: center; }
+  .fila-vence input[type="date"] { flex: 1; }
+  .casilla { display: flex; align-items: center; gap: 6px; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+  .casilla input { width: auto; }
+  .pista.estado-VENCIDO { color: var(--vencido); }
+  .pista.estado-ROJO { color: var(--rojo); }
+  .pista.estado-AMARILLO { color: #A87A22; }
+  .pista.estado-VERDE { color: var(--verde); }
+  .pista.estado-NO_APLICA, .pista.estado-SIN_FECHA { color: var(--texto-suave); }
+
+  .mas-detalles { margin-top: 16px; border-top: 1px solid var(--verde-borde); padding-top: 12px; }
+  .mas-detalles summary { cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--texto-suave); margin-bottom: 12px; }
+  .mas-detalles summary em { font-weight: 400; }
+
+  .duplicado { margin-top: 16px; padding: 14px 16px; background: #FBF5E8; border: 1px solid #EBD9AE; border-radius: 12px; }
+  .duplicado p { margin: 0 0 10px; font-size: 14px; }
+  .acciones-dup, .acciones-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .acciones-form { margin-top: 18px; align-items: center; }
+  .acciones-form .guardar { flex: 1; margin: 0; }
+
+  .boton-chico {
+    padding: 6px 11px; border: 1px solid var(--verde-borde); border-radius: 8px; background: var(--blanco);
+    font: inherit; font-size: 12.5px; color: var(--texto); cursor: pointer; white-space: nowrap;
+  }
+  .boton-chico:hover { border-color: var(--verde-claro); }
+  .boton-chico.primario { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .boton-chico.suave { border-color: transparent; background: transparent; color: var(--texto-suave); }
+  .boton-chico:disabled { opacity: 0.5; cursor: wait; }
+
+  .filtros-log { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .filtros-log select { width: auto; font-size: 13.5px; padding: 9px 12px; }
+  .filtros-log input[type="search"] { flex: 1; min-width: 180px; font-size: 13.5px; padding: 9px 12px; }
+  .cargando { color: var(--texto-suave); font-size: 14px; }
+
+  .kpis.seis { grid-template-columns: repeat(6, 1fr); }
+  .kpi-estado { cursor: pointer; }
+  .kpi-estado:hover, .kpi-estado.elegida { border-color: var(--verde-claro); }
+  .kpi-estado.elegida { box-shadow: 0 0 0 2px var(--verde-muy-claro); }
+  .kpi-cambio.enlace { color: var(--verde); }
+
+  .punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; flex: none; }
+  .punto.vencido { background: var(--vencido); }
+  .punto.rojo { background: var(--rojo); }
+  .punto.amarillo { background: var(--amarillo); }
+  .punto.verde { background: var(--verde); }
+  .punto.sin-dato { background: var(--sin-dato); }
+
+  .conteo-tabla { font-weight: 400; color: var(--texto-suave); font-size: 12.5px; margin-left: 6px; }
+  .tabla-scroll { overflow-x: auto; }
+  .tabla.inventario td, .tabla.inventario th { text-align: left; white-space: nowrap; }
+  .tabla.inventario td.producto { white-space: normal; min-width: 180px; }
+  .tabla.inventario td.lote { white-space: normal; max-width: 130px; overflow-wrap: anywhere; }
+  .tabla.inventario .num { text-align: right; }
+  .tabla.inventario tr.vencida td { background: #F6F4F1; }
+  .tabla.inventario tr.inactiva td { color: var(--texto-suave); }
+  .tabla.inventario .suave { color: var(--texto-suave); font-size: 12px; }
+  .etiqueta { display: inline-block; padding: 1px 7px; border-radius: 6px; background: var(--crema); font-size: 11.5px; font-weight: 600; color: var(--texto-suave); }
+  .estado-celda { display: inline-flex; align-items: center; }
+  .acciones-fila { display: flex; gap: 4px; }
+  .editor-fila td { background: var(--verde-muy-claro) !important; white-space: normal !important; }
+  .editor { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 4px 0; }
+  .editor input[type="date"], .editor input[type="number"], .editor input[type="text"] { width: auto; padding: 7px 10px; font-size: 13.5px; }
+  .editor input[type="text"] { min-width: 220px; }
+  .ver-mas { margin-top: 12px; }
+
+  @media (max-width: 1100px) {
+    .kpis.seis { grid-template-columns: repeat(3, 1fr); }
+  }
   @media (max-width: 900px) {
     .kpis { grid-template-columns: repeat(2, 1fr); }
     .dos-paneles { grid-template-columns: 1fr; }
   }
   @media (max-width: 620px) {
     .campo.chico, .campo.medio, .campo.grande { width: 100%; }
+    .kpis.seis { grid-template-columns: repeat(2, 1fr); }
+    .tabs { flex-wrap: wrap; }
+    .tab { flex: 1 1 40%; }
+    .fila-vence { flex-wrap: wrap; }
   }
 </style>
