@@ -1,14 +1,41 @@
 <script>
   let catalogo = null;
   let tabActual = 'ingreso';
+  let esperaListas = null;
 
-  window.addEventListener('load', function () {
+  // Cualquier error de la página se muestra arriba en vez de quedarse en "Cargando listas…"
+  window.addEventListener('error', function (ev) {
+    estado('Error en la página: ' + (ev.message || 'desconocido'), true);
+  });
+
+  // DOMContentLoaded no espera a Chart.js ni a las fuentes, así las listas piden datos de una vez
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+
+  function iniciar() {
     document.getElementById('i_fecha').value = hoy();
     document.getElementById('e_fecha').value = hoy();
+    cargarListas();
+  }
+
+  function cargarListas() {
+    estado('Cargando listas…');
+    clearTimeout(esperaListas);
+    // Si en 25 s no responde ni con error, casi siempre es por tener varias cuentas de Google abiertas
+    esperaListas = setTimeout(function () {
+      if (!catalogo) estado('El servidor no responde. Abre el enlace en una ventana de incógnito con una sola cuenta de Google.', true);
+    }, 25000);
     google.script.run.withSuccessHandler(pintarListas)
                      .withFailureHandler(fallo)
                      .getCatalogo();
-  });
+  }
+
+  function estado(mensaje, malo) {
+    const el = document.getElementById('estado');
+    el.textContent = mensaje;
+    el.style.color = malo ? '#b3443a' : '';
+    el.title = mensaje;
+  }
 
   function hoy() {
     const d = new Date();
@@ -17,6 +44,11 @@
   function dos(n) { return (n < 10 ? '0' : '') + n; }
 
   function pintarListas(datos) {
+    clearTimeout(esperaListas);
+    if (!datos || !datos.servicios) {
+      estado('El servidor respondió vacío. Revisa la hoja CUENTAS CONTABLES.', true);
+      return;
+    }
     catalogo = datos;
 
     const lista = document.getElementById('listaServicios');
@@ -29,13 +61,13 @@
     llenarSelect('e_concepto', datos.conceptos);
     llenarSelect('e_soporte', datos.soportes, true);
 
-    document.getElementById('estado').textContent = datos.servicios.length + ' servicios cargados';
+    estado(datos.servicios.length + ' servicios cargados');
   }
 
   function llenarSelect(id, valores, conVacio) {
     const select = document.getElementById(id);
     let html = conVacio ? '<option value="">(sin soporte)</option>' : '';
-    html += valores.map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
+    html += (valores || []).map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
     select.innerHTML = html;
   }
 
@@ -188,8 +220,10 @@
   }
 
   function fallo(e) {
-    document.getElementById('estado').textContent = 'Error cargando listas';
-    avisar(e.message, true);
+    clearTimeout(esperaListas);
+    const mensaje = (e && e.message) ? e.message : String(e);
+    estado('Error cargando listas: ' + mensaje, true);
+    avisar(mensaje, true);
   }
     /* ===================== DASHBOARD ===================== */
 
@@ -364,6 +398,7 @@
 
   /* ---------- gráficos ---------- */
   function dibujar(id, config) {
+    if (typeof Chart === 'undefined') return; // sin Chart.js igual se ven los números y la tabla
     if (graficos[id]) graficos[id].destroy();
     graficos[id] = new Chart(document.getElementById(id).getContext('2d'), config);
   }
@@ -594,3 +629,4 @@
     });
     return peor;
   }
+</script>

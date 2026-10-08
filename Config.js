@@ -51,7 +51,10 @@ const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
 /** Si existe la propiedad ID_LIBRO usa ese libro (sirve para tener uno de pruebas). */
 function getLibro() {
   const id = PropertiesService.getScriptProperties().getProperty('ID_LIBRO');
-  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActive();
+  if (id) return SpreadsheetApp.openById(id);
+  const libro = SpreadsheetApp.getActive();
+  if (!libro) throw new Error('El script no está dentro de la hoja de cálculo. Ábrelo desde Extensiones > Apps Script de la hoja, o guarda el ID de la hoja en la propiedad ID_LIBRO.');
+  return libro;
 }
 
 /** Busca la hoja ignorando mayúsculas y espacios de más (la del II semestre tiene un espacio al inicio). */

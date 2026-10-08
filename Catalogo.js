@@ -5,8 +5,10 @@
 
 function getCatalogo() {
   const cache = CacheService.getScriptCache();
-  const guardado = cache.get('catalogo');
-  if (guardado) return JSON.parse(guardado);
+  try {
+    const guardado = cache.get('catalogo');
+    if (guardado) return JSON.parse(guardado);
+  } catch (e) { /* caché dañada: se vuelve a leer la hoja */ }
 
   const hoja = getHoja(CONFIG.catalogo);
   const datos = hoja.getDataRange().getValues();
@@ -57,7 +59,9 @@ function getCatalogo() {
     soportes: listas.soportes
   };
 
-  cache.put('catalogo', JSON.stringify(resultado), 21600); // 6 horas
+  try {
+    cache.put('catalogo', JSON.stringify(resultado), 21600); // 6 horas
+  } catch (e) { /* más de 100 KB no cabe en caché; no pasa nada */ }
   return resultado;
 }
 
