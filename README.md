@@ -11,6 +11,7 @@ todo en una sola interfaz construida sobre Google Workspace.
 ![Google Sheets](https://img.shields.io/badge/Google%20Sheets-34A853?style=flat&logo=googlesheets&logoColor=white)
 ![Chart.js](https://img.shields.io/badge/Chart.js-FF6384?style=flat&logo=chartdotjs&logoColor=white)
 ![Sin servidores](https://img.shields.io/badge/costo%20de%20infraestructura-%240-4BB69E?style=flat)
+[![Licencia: todos los derechos reservados](https://img.shields.io/badge/licencia-todos%20los%20derechos%20reservados-6B6560?style=flat)](LICENSE)
 
 <img src="docs/capturas/dashboard.png" alt="Tablero financiero de Oniderm" width="820">
 
@@ -206,6 +207,9 @@ pruebas de punta a punta en Chromium (Playwright) sobre la interfaz real:
 <div align="center">
 
 Desarrollado por **Rebeca Pedrozo** · [@rebeca07-pedrozo](https://github.com/rebeca07-pedrozo)
+
+© 2026 Rebeca Pedrozo · **Todos los derechos reservados.** Este código se publica solo para mostrar el trabajo;
+no se permite copiarlo, modificarlo ni usarlo sin autorización escrita. Ver [LICENSE](LICENSE).
 
 <sub>Las capturas de la parte financiera usan datos ficticios.</sub>
 
