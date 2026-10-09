@@ -296,6 +296,7 @@
     const n = numMes(mes);
     if (p === '1') return n <= 6;
     if (p === '2') return n > 6;
+    if (p.charAt(0) === 'T') return Math.ceil(n / 3) === Number(p.charAt(1));
     return true;
   }
 
@@ -364,16 +365,24 @@
     const ultimo = datos.meses.length ? datos.meses[datos.meses.length - 1].mes : null;
     texto('k5', ultimo ? pesos(cajaHasta(ultimo)) : '—');
 
-    graficoMeses(datos.meses);
+    // los gráficos de evolución y la tabla se agrupan por mes, trimestre, semestre o año
+    const modo = document.getElementById('f_agrupar').value;
+    const grupos = agruparMeses(modo === 'anio' ? resumen.meses : datos.meses, modo, hoy);
+    const gruposCerrados = grupos.filter(function (g) { return !g.enCurso; });
+    ultimosGrupos = grupos;
+    texto('titMeses', TITULO_GRUPO[modo] + ': lo que entra y lo que sale');
+    texto('titTabla', 'Detalle por ' + UNIDAD_GRUPO[modo].uno);
+
+    graficoMeses(grupos);
     graficoBarras('gGastos', juntar(datos.gastos, 7), BEIGE);
     graficoBarras('gServicios', juntar(datos.servicios, 7), VERDE_CLARO, VERDE);
-    graficoCaja(datos.meses);
-    tabla(datos.meses, hoy);
+    graficoCaja(grupos);
+    tabla(grupos, modo);
 
-    leerMeses(cerrados);
+    leerMeses(gruposCerrados, modo);
     leerLista('leerGastos', juntar(datos.gastos), t.egreso, 'de todo lo que gastas');
     leerLista('leerServicios', juntar(datos.servicios), t.ingreso, 'de tus ingresos');
-    leerCaja(datos.meses);
+    leerCaja(grupos);
     paraRevisar(datos, cerrados, t, p);
   }
 
@@ -441,7 +450,7 @@
     dibujar('gMeses', {
       type: 'bar',
       data: {
-        labels: meses.map(function (m) { return MES_CORTO[numMes(m.mes) - 1]; }),
+        labels: meses.map(function (g) { return g.corta; }),
         datasets: [
           { label: 'Entró', data: meses.map(function (m) { return m.ingreso; }), backgroundColor: VERDE, borderRadius: 6, maxBarThickness: 26 },
           { label: 'Salió', data: meses.map(function (m) { return m.egreso; }), backgroundColor: BEIGE, borderRadius: 6, maxBarThickness: 26 },
@@ -479,7 +488,7 @@
 
   function graficoCaja(meses) {
     if (!meses.length) return;
-    let acumulado = cajaHasta(restarUno(meses[0].mes));
+    let acumulado = cajaHasta(restarUno(meses[0].desde));
     const serie = meses.map(function (m) { acumulado += m.ingreso - m.egreso; return acumulado; });
 
     const cfg = base();
@@ -492,7 +501,7 @@
     dibujar('gCaja', {
       type: 'line',
       data: {
-        labels: meses.map(function (m) { return MES_CORTO[numMes(m.mes) - 1]; }),
+        labels: meses.map(function (g) { return g.corta; }),
         datasets: [{
           label: 'Caja acumulada', data: serie,
           borderColor: VERDE, borderWidth: 2.5, fill: true,
@@ -506,33 +515,104 @@
   }
 
   /* ---------- tabla ---------- */
-  function tabla(meses, hoy) {
-    let html = '<table class="tabla"><thead><tr><th>Mes</th><th>Entró</th><th>Salió</th><th>Te quedó</th><th>Atenciones</th></tr></thead><tbody>';
-    meses.forEach(function (m) {
-      const saldo = m.ingreso - m.egreso;
-      html += '<tr><td>' + bonito(nombreMes(m.mes)) + (m.mes === hoy ? ' <span style="color:#858581">· en curso</span>' : '') + '</td>' +
-              '<td>' + pesos(m.ingreso) + '</td><td>' + pesos(m.egreso) + '</td>' +
+  function tabla(grupos, modo) {
+    let html = '<table class="tabla"><thead><tr><th>' + bonito(UNIDAD_GRUPO[modo].uno) + '</th><th>Entró</th><th>Salió</th><th>Te quedó</th><th>Atenciones</th></tr></thead><tbody>';
+    grupos.forEach(function (g) {
+      const saldo = g.ingreso - g.egreso;
+      html += '<tr><td>' + g.larga + (g.enCurso ? ' <span style="color:#858581">· en curso</span>' : '') + '</td>' +
+              '<td>' + pesos(g.ingreso) + '</td><td>' + pesos(g.egreso) + '</td>' +
               '<td class="' + (saldo < 0 ? 'negativo' : '') + '">' + pesos(saldo) + '</td>' +
-              '<td>' + m.atenciones + '</td></tr>';
+              '<td>' + g.atenciones + '</td></tr>';
     });
-    document.getElementById('tablaMeses').innerHTML = html + '</tbody></table>';
+    document.getElementById('tablaMeses').innerHTML = '<div class="tabla-scroll">' + html + '</tbody></table></div>';
+  }
+
+  /* ---------- agrupación por mes, trimestre, semestre o año ---------- */
+  let ultimosGrupos = [];
+  const TITULO_GRUPO = { mes: 'Mes a mes', trimestre: 'Trimestre a trimestre', semestre: 'Semestre a semestre', anio: 'Año a año' };
+  const UNIDAD_GRUPO = {
+    mes: { uno: 'mes', varios: 'meses' }, trimestre: { uno: 'trimestre', varios: 'trimestres' },
+    semestre: { uno: 'semestre', varios: 'semestres' }, anio: { uno: 'año', varios: 'años' }
+  };
+
+  /** Suma los meses en grupos. Cada grupo sabe su primer y último mes, y si contiene el mes en curso. */
+  function agruparMeses(meses, modo, hoy) {
+    const grupos = [];
+    const porClave = {};
+    meses.forEach(function (m) {
+      const anio = m.mes.substring(0, 4), n = numMes(m.mes);
+      const clave = modo === 'mes' ? m.mes
+        : modo === 'trimestre' ? anio + '-T' + Math.ceil(n / 3)
+        : modo === 'semestre' ? anio + '-S' + (n <= 6 ? 1 : 2)
+        : anio;
+      let g = porClave[clave];
+      if (!g) {
+        g = porClave[clave] = { clave: clave, modo: modo, anio: anio, desde: m.mes, hasta: m.mes,
+                                ingreso: 0, egreso: 0, comision: 0, atenciones: 0, enCurso: false };
+        grupos.push(g);
+      }
+      g.hasta = m.mes;
+      g.ingreso += m.ingreso; g.egreso += m.egreso;
+      g.comision += m.comision; g.atenciones += m.atenciones;
+      if (m.mes === hoy) g.enCurso = true;
+    });
+    const variosAnios = grupos.length && grupos[0].anio !== grupos[grupos.length - 1].anio;
+    grupos.forEach(function (g) { nombrarGrupo(g, variosAnios); });
+    return grupos;
+  }
+
+  /** corta: etiqueta del eje · larga: fila de la tabla · en/que: para las frases de lectura */
+  function nombrarGrupo(g, variosAnios) {
+    const anio = variosAnios ? ' ' + g.anio : '';
+    const anioCorto = variosAnios ? ' ' + g.anio.substring(2) : '';
+    const n = Number(g.clave.slice(-1));
+    if (g.modo === 'mes') {
+      const mes = nombreMes(g.desde);
+      g.corta = MES_CORTO[numMes(g.desde) - 1] + anioCorto;
+      g.larga = bonito(mes) + anio;
+      g.en = 'En ' + mes + anio; g.que = 'que en ' + mes + anio;
+    } else if (g.modo === 'trimestre') {
+      const ini = MES_LARGO[(n - 1) * 3], fin = MES_LARGO[(n - 1) * 3 + 2];
+      g.corta = 'T' + n + anioCorto;
+      g.larga = bonito(ini.substring(0, 3)) + ' – ' + bonito(fin.substring(0, 3)) + ' ' + g.anio;
+      g.en = 'Entre ' + ini + ' y ' + fin + anio; g.que = 'que entre ' + ini + ' y ' + fin + anio;
+    } else if (g.modo === 'semestre') {
+      const cual = n === 1 ? 'primer' : 'segundo';
+      g.corta = 'S' + n + anioCorto;
+      g.larga = bonito(cual) + ' semestre ' + g.anio;
+      g.en = 'En el ' + cual + ' semestre' + anio; g.que = 'que en el ' + cual + ' semestre' + anio;
+    } else {
+      g.corta = g.anio; g.larga = g.anio;
+      g.en = 'En ' + g.anio; g.que = 'que en ' + g.anio;
+    }
   }
 
   /* ---------- lecturas ---------- */
-  function leerMeses(cerrados) {
+  function leerMeses(cerrados, modo) {
     const el = document.getElementById('leerMeses');
-    if (cerrados.length < 2) { el.textContent = ''; return; }
+    if (cerrados.length < 2) { el.innerHTML = lecturaEnCurso(); return; }
     const ult = cerrados[cerrados.length - 1];
     const ant = cerrados[cerrados.length - 2];
     const dif = ant.ingreso ? ((ult.ingreso - ant.ingreso) / ant.ingreso) * 100 : 0;
-    const rojos = cerrados.filter(function (m) { return m.ingreso - m.egreso < 0; }).length;
+    const rojos = cerrados.filter(function (g) { return g.ingreso - g.egreso < 0; }).length;
+    const unidad = UNIDAD_GRUPO[modo || 'mes'];
 
-    el.innerHTML = 'En ' + nombreMes(ult.mes) + ' entraron <b>' + pesos(ult.ingreso) + '</b>, ' +
+    el.innerHTML = ult.en + ' entraron <b>' + pesos(ult.ingreso) + '</b>, ' +
       (dif >= 0 ? 'un <b>' + Math.round(dif) + '% más</b>' : 'un <b>' + Math.abs(Math.round(dif)) + '% menos</b>') +
-      ' que en ' + nombreMes(ant.mes) + '. ' +
+      ' ' + ant.que + '. ' +
       (rojos === 0
-        ? 'En todos los meses del período te quedó saldo a favor.'
-        : 'En <b>' + rojos + ' de ' + cerrados.length + ' meses</b> gastaste más de lo que entró.');
+        ? 'En todos los ' + unidad.varios + ' del período te quedó saldo a favor.'
+        : 'En <b>' + rojos + ' de ' + cerrados.length + ' ' + unidad.varios + '</b> gastaste más de lo que entró.');
+  }
+
+  /** Con un solo período cerrado no hay con qué comparar: se cuenta cómo va el período en curso. */
+  function lecturaEnCurso() {
+    const grupos = ultimosGrupos;
+    const actual = grupos.filter(function (g) { return g.enCurso; })[0];
+    const cerrado = grupos.filter(function (g) { return !g.enCurso; }).pop();
+    if (!actual || !cerrado) return '';
+    return actual.en.replace(/^En /, 'En lo que va de ').replace(/^Entre /, 'En lo que va de ').replace('de el ', 'del ') + ' han entrado <b>' + pesos(actual.ingreso) +
+      '</b>; ' + cerrado.en.charAt(0).toLowerCase() + cerrado.en.slice(1) + ' entraron <b>' + pesos(cerrado.ingreso) + '</b> en total.';
   }
 
   function leerLista(id, lista, total, cola) {
@@ -548,8 +628,8 @@
   function leerCaja(meses) {
     const el = document.getElementById('leerCaja');
     if (!meses.length) { el.textContent = ''; return; }
-    const fin = cajaHasta(meses[meses.length - 1].mes);
-    const dif = fin - cajaHasta(restarUno(meses[0].mes));
+    const fin = cajaHasta(meses[meses.length - 1].hasta);
+    const dif = fin - cajaHasta(restarUno(meses[0].desde));
     el.innerHTML = 'Tu caja cerró el período en <b>' + pesos(fin) + '</b>, ' +
       (dif >= 0 ? 'con <b>' + pesos(dif) + ' más</b>' : 'con <b>' + pesos(Math.abs(dif)) + ' menos</b>') +
       ' que al empezar.';

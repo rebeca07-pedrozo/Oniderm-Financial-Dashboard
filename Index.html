@@ -160,11 +160,25 @@
         <p class="sub-tablero">Dra. Lina Primo Losada</p>
       </div>
       <div class="periodo">
-        <select id="f_anio" onchange="pintarDashboard()"></select>
-        <select id="f_periodo" onchange="pintarDashboard()">
+        <select id="f_anio" onchange="pintarDashboard()" aria-label="Año"></select>
+        <select id="f_periodo" onchange="pintarDashboard()" aria-label="Período">
           <option value="0">Todo el año</option>
-          <option value="1">Enero a junio</option>
-          <option value="2">Julio a diciembre</option>
+          <optgroup label="Semestre">
+            <option value="1">Enero a junio</option>
+            <option value="2">Julio a diciembre</option>
+          </optgroup>
+          <optgroup label="Trimestre">
+            <option value="T1">Ene – Mar</option>
+            <option value="T2">Abr – Jun</option>
+            <option value="T3">Jul – Sep</option>
+            <option value="T4">Oct – Dic</option>
+          </optgroup>
+        </select>
+        <select id="f_agrupar" onchange="pintarDashboard()" aria-label="Agrupar por">
+          <option value="mes">Por mes</option>
+          <option value="trimestre">Por trimestre</option>
+          <option value="semestre">Por semestre</option>
+          <option value="anio">Por año (todos)</option>
         </select>
         <button class="recargar" onclick="refrescarDashboard()" title="Volver a leer la hoja">↻</button>
       </div>
@@ -184,7 +198,7 @@
     </section>
 
     <section class="panel">
-      <h2>Mes a mes: lo que entra y lo que sale</h2>
+      <h2 id="titMeses">Mes a mes: lo que entra y lo que sale</h2>
       <div class="lienzo alto"><canvas id="gMeses"></canvas></div>
       <p class="lectura" id="leerMeses"></p>
     </section>
@@ -209,7 +223,7 @@
     </section>
 
     <section class="panel">
-      <h2>Detalle por mes</h2>
+      <h2 id="titTabla">Detalle por mes</h2>
       <div id="tablaMeses"></div>
     </section>
 

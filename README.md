@@ -52,6 +52,7 @@ clara, reglas de negocio y alertas.
 - **Registro de egresos** por concepto contable, con soporte y número de soporte.
 - Cada movimiento se guarda en la hoja del semestre correcto según su fecha, con mes y año calculados.
 - **Tablero financiero:** lo que entró, lo que salió, margen y caja acumulada, comparados con el año anterior.
+  Se filtra por año, semestre o trimestre, y se **agrupa por mes, trimestre, semestre o año**.
   Incluye gráficos mes a mes, en qué se va el dinero, qué servicios generan más ingresos y cómo evoluciona la caja.
 - **Lecturas en lenguaje natural** bajo cada gráfico (*"Arrendamiento es lo más grande: 48 % de todo lo que gastas"*)
   y una sección **"Para revisar"** que detecta meses sin gastos registrados, gastos que crecen más rápido que los
@@ -147,6 +148,7 @@ Parte del trabajo fue hacer el diagnóstico antes de escribir código. Las decis
 ├── InventarioTablero.js    Agregados, "Para revisar" y lecturas del tablero de logística
 ├── InventarioMigracion.js  Migración única del Excel original (idempotente)
 ├── InventarioAlertas.js    Revisión diaria y correo de alertas
+├── Logo.js                 Logo desde Drive (por ID) y conversión a base64
 ├── WebApp.js               doGet(), includes y diagnóstico
 ├── Index.html              Estructura de la interfaz
 ├── Estilos.html            Estilos con la paleta de la marca
@@ -180,6 +182,7 @@ pruebas de punta a punta en Chromium (Playwright) sobre la interfaz real:
      | `ID_LIBRO_INVENTARIO` | ID del Sheet de inventario |
      | `CORREOS_ALERTA` | correos para la alerta diaria, separados por coma |
      | `RESPONSABLES_INVENTARIO` | *(opcional)* nombres del equipo, separados por coma |
+     | `LOGO_ID` | *(opcional)* ID en Drive de la imagen del logo; la app la convierte sola |
 
 3. **Migrar** (una sola vez): ejecutar `migrarInventario`. El registro debe decir 262 registros y 117 con fecha.
    ⚠️ No se vuelve a ejecutar después de empezar a usar la app: rehace la hoja desde el Excel original.
@@ -195,6 +198,8 @@ pruebas de punta a punta en Chromium (Playwright) sobre la interfaz real:
 | `limpiarCache()` | Recarga las listas desplegables después de editar `CUENTAS CONTABLES` |
 | `rehacerListas()` | Reemplaza listas desplegables dañadas en las hojas de movimientos |
 | `revisarVencimientos()` | Corre la revisión diaria a mano, para probar el correo |
+| `revisarLogo()` | Muestra qué logo está usando la página |
+| `logoADocs(id)` | Convierte una imagen de Drive a base64 y la deja en un Google Docs |
 
 ## Próximos pasos
 
