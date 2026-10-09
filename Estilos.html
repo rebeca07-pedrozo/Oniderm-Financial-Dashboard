@@ -50,8 +50,10 @@
 
   /* ---------- encabezado ---------- */
   .cabecera { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
-  .marca { display: flex; align-items: center; gap: 13px; }
-  .marca img { height: 42px; width: auto; }
+  .marca { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .cabecera h1.logo { line-height: 0; }
+  /* multiply funde el fondo blanco del logo con el crema de la página */
+  .marca img { height: 46px; width: auto; max-width: 100%; mix-blend-mode: multiply; }
   .cabecera h1 { margin: 0; font-size: 21px; font-weight: 600; color: var(--verde); letter-spacing: -0.3px; }
   .cabecera p { margin: 1px 0 0; font-size: 12.5px; color: var(--texto-suave); }
   .estado { font-size: 12px; color: var(--texto-suave); }

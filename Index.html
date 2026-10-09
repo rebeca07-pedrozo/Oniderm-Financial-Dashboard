@@ -11,12 +11,14 @@
 <div class="app">
 
   <header class="cabecera">
+    <? var logo = logoPagina(); ?>
     <div class="marca">
-      <img src="<?!= logoPagina() ?>" alt="Oniderm" onerror="this.style.display='none'">
-    <div>
+      <? if (logo) { ?>
+        <h1 class="logo"><img src="<?!= logo ?>" alt="Dra. Lina Primo Losada · Oniderm"></h1>
+      <? } else { ?>
         <h1>Oniderm</h1>
-        <p>Registro de ingresos y egresos</p>
-      </div>
+      <? } ?>
+      <p>Registro de ingresos y egresos</p>
     </div>
     <span id="estado" class="estado">Cargando listas…</span>
   </header>
