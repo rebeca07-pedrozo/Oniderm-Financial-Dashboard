@@ -10,6 +10,21 @@
  * Se llama logoPagina (no getLogo) para no chocar con versiones viejas de getLogo que hayan quedado en Config.
  */
 function logoPagina() {
+  return logoSeguro(buscarLogo());
+}
+
+/**
+ * Index.html imprime el logo sin escapar (con <?!= ?>), porque el escape de HtmlService descarta las
+ * imágenes data:...;base64. Por eso aquí solo se deja pasar una imagen base64 válida o una URL https.
+ */
+function logoSeguro(valor) {
+  const v = String(valor || '').trim();
+  if (/^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]+$/i.test(v)) return v;
+  if (/^https:\/\/[^"'<>\s]+$/i.test(v)) return v;
+  return '';
+}
+
+function buscarLogo() {
   const props = PropertiesService.getScriptProperties();
   const id = props.getProperty('LOGO_ID');
   if (id) {
