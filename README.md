@@ -198,7 +198,7 @@ pruebas de punta a punta en Chromium (Playwright) sobre la interfaz real:
 | `limpiarCache()` | Recarga las listas desplegables después de editar `CUENTAS CONTABLES` |
 | `rehacerListas()` | Reemplaza listas desplegables dañadas en las hojas de movimientos |
 | `revisarVencimientos()` | Corre la revisión diaria a mano, para probar el correo |
-| `revisarLogo()` | Muestra qué logo está usando la página |
+| `revisarLogo()` | Revisa paso a paso el logo (propiedad, archivo en Drive, conversión) si no aparece |
 | `logoADocs(id)` | Convierte una imagen de Drive a base64 y la deja en un Google Docs |
 
 ## Próximos pasos

@@ -5,8 +5,11 @@
  * La página convierte la imagen a base64 sola y la guarda 6 horas en caché.
  */
 
-/** Lo que usa la página (Index.html). Orden: LOGO_ID en Drive → LOGO viejo en propiedades → CONFIG.logo. */
-function getLogo() {
+/**
+ * Lo que usa la página (Index.html). Orden: LOGO_ID en Drive → LOGO viejo en propiedades → CONFIG.logo.
+ * Se llama logoPagina (no getLogo) para no chocar con versiones viejas de getLogo que hayan quedado en Config.
+ */
+function logoPagina() {
   const props = PropertiesService.getScriptProperties();
   const id = props.getProperty('LOGO_ID');
   if (id) {
@@ -49,8 +52,35 @@ function ejecutarLogoADocs() {
   logoADocs('PEGA_AQUI_EL_ID_DE_LA_IMAGEN');
 }
 
-/** Para revisar qué está usando la página. */
+/** Córrela desde el editor si el logo no aparece: dice paso a paso qué encuentra. */
 function revisarLogo() {
-  const b64 = getLogo();
-  Logger.log(b64 ? 'Logo encontrado: ' + Math.round(b64.length / 1024) + ' KB · ' + b64.substring(0, 40) + '…' : 'No hay logo configurado.');
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('LOGO_ID');
+  Logger.log('1) LOGO_ID: ' + (id || '(vacío)'));
+  if (id) {
+    try {
+      const archivo = DriveApp.getFileById(id);
+      Logger.log('2) Archivo en Drive: "' + archivo.getName() + '" · ' + archivo.getMimeType() + ' · ' + Math.round(archivo.getSize() / 1024) + ' KB');
+      const b64 = imagenABase64(id);
+      Logger.log('3) Convertido a base64: ' + Math.round(b64.length / 1024) + ' KB. Empieza con ' + b64.substring(0, 30) + '…');
+    } catch (e) {
+      Logger.log('2) ERROR leyendo el archivo: ' + e.message);
+    }
+  }
+  const viejo = props.getProperty('LOGO');
+  if (viejo) {
+    Logger.log('Ojo: existe la propiedad LOGO (' + viejo.length + ' caracteres). Ya no se necesita: bórrala. ' +
+               (viejo.length >= 8000 ? 'Además parece cortada (las propiedades guardan máximo 9 KB).' : ''));
+  }
+  if (typeof getLogo === 'function') {
+    Logger.log('Ojo: hay una función getLogo vieja en otro archivo (seguramente Config). Ya no se usa: bórrala.');
+  }
+  limpiarCacheLogo();
+  Logger.log(logoPagina() ? 'Listo: la página tiene logo. Recarga el enlace.' : 'La página no tiene logo.');
+}
+
+/** Si cambias la imagen en Drive y quieres verla ya (sin esperar las 6 horas de caché). */
+function limpiarCacheLogo() {
+  const id = PropertiesService.getScriptProperties().getProperty('LOGO_ID');
+  if (id) CacheService.getScriptCache().remove('logo|' + id);
 }
