@@ -1,4 +1,12 @@
 /**
+ * Oniderm · Gestión financiera y logística
+ * Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
+ * Software propietario y confidencial. Prohibido copiar, modificar, distribuir
+ * o usar este archivo, total o parcialmente, sin autorización escrita de la autora.
+ * Ver el archivo LICENSE.
+ */
+
+/**
  * Config.gs
  * Lo único que se toca cuando algo cambia. El resto del código no se modifica.
  */

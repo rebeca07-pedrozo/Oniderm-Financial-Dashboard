@@ -1,4 +1,12 @@
 /**
+ * Oniderm · Gestión financiera y logística
+ * Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
+ * Software propietario y confidencial. Prohibido copiar, modificar, distribuir
+ * o usar este archivo, total o parcialmente, sin autorización escrita de la autora.
+ * Ver el archivo LICENSE.
+ */
+
+/**
  * Inventario.gs
  * Lee, escribe y da de baja registros de la hoja INVENTARIO (libro de inventario).
  * El semáforo se calcula al vuelo cada vez que se lee; nunca se guarda en celdas.

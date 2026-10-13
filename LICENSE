@@ -1,51 +1,151 @@
-LICENCIA PROPIETARIA — TODOS LOS DERECHOS RESERVADOS
+LICENCIA DE SOFTWARE PROPIETARIO
+TODOS LOS DERECHOS RESERVADOS
 
-Copyright (c) 2026 Rebeca Pedrozo
+Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
 
-Este repositorio, incluido su código fuente, diseño, documentación, capturas
-de pantalla y demás archivos (en adelante, "el Software"), es propiedad de su
-autora y está protegido por las normas de derecho de autor de Colombia
-(Ley 23 de 1982 y Decisión Andina 351 de 1993) y por los tratados
-internacionales aplicables.
+Software: "Oniderm · Gestión financiera y logística" (en adelante, "el Software"),
+incluido su código fuente y objeto, su arquitectura, estructura, organización y
+lógica, el diseño de su interfaz, la documentación, las capturas de pantalla y
+todos los demás archivos de este repositorio, así como sus versiones anteriores
+y futuras.
 
-1. Se permite únicamente VER el Software con fines de evaluación del trabajo
-   de la autora, por ejemplo como parte de su portafolio profesional.
 
-2. Sin autorización previa y por escrito de la autora, queda prohibido:
-   a) copiar, reproducir o descargar el Software, total o parcialmente,
-      para cualquier uso distinto al indicado en el punto 1;
-   b) modificarlo, adaptarlo, traducirlo o crear obras derivadas;
-   c) distribuirlo, publicarlo, sublicenciarlo, venderlo o cederlo;
-   d) usarlo, instalarlo o ponerlo en funcionamiento, con o sin fines
-      comerciales;
-   e) eliminar o alterar este aviso de derechos de autor.
+1. TITULARIDAD
 
-3. El hecho de que el Software sea visible públicamente no otorga ninguna
-   licencia ni derecho de uso. Cualquier derecho no concedido expresamente
-   en este documento queda reservado a la autora.
+1.1. El Software es una obra protegida, cuya titularidad de los derechos
+     patrimoniales y morales corresponde a su autora, Rebeca Pedrozo (en
+     adelante, "la Autora").
 
-4. Los derechos de uso del cliente para el que fue desarrollado el Software
-   se rigen por el acuerdo celebrado entre ese cliente y la autora, y no por
-   esta licencia.
+1.2. El Software está protegido como obra literaria por la legislación
+     colombiana de derecho de autor, en particular la Ley 23 de 1982, la
+     Ley 1915 de 2018, la Decisión Andina 351 de 1993 y el Decreto 1360 de
+     1989 sobre soporte lógico (software), así como por los tratados
+     internacionales aplicables, incluidos el Convenio de Berna y el Acuerdo
+     sobre los ADPIC.
 
-5. Los nombres, marcas y logotipos de terceros que aparecen en el Software
-   pertenecen a sus respectivos titulares.
+1.3. Esta licencia no transfiere ningún derecho de propiedad sobre el
+     Software. Todo derecho que no se conceda expresamente en este documento
+     queda reservado a la Autora.
 
-6. El Software se ofrece "tal cual", sin garantía de ningún tipo. En ningún
-   caso la autora será responsable por daños derivados de su uso no
-   autorizado.
 
-Para solicitar permisos o licencias de uso, contactar a la autora a través de
+2. ÚNICO USO PERMITIDO
+
+2.1. Se permite únicamente VISUALIZAR el Software en la plataforma donde está
+     publicado, con el fin de evaluar el trabajo profesional de la Autora,
+     por ejemplo como parte de su portafolio.
+
+2.2. Que el Software sea visible públicamente no otorga ninguna licencia,
+     autorización ni derecho de uso.
+
+
+3. PROHIBICIONES
+
+Sin autorización previa, expresa y por escrito de la Autora, queda prohibido:
+
+  a) copiar, reproducir, descargar, clonar o almacenar el Software, total o
+     parcialmente, por cualquier medio;
+  b) modificarlo, adaptarlo, traducirlo, transformarlo o crear obras
+     derivadas a partir de él, incluidas versiones que reutilicen su
+     estructura, lógica o diseño aunque el código se reescriba;
+  c) distribuirlo, publicarlo, comunicarlo públicamente, sublicenciarlo,
+     venderlo, alquilarlo, prestarlo o cederlo a cualquier título;
+  d) usarlo, instalarlo, ejecutarlo o ponerlo en funcionamiento, con o sin
+     fines comerciales, incluido ofrecerlo como servicio a terceros;
+  e) descompilarlo, desensamblarlo o aplicarle ingeniería inversa;
+  f) utilizarlo, total o parcialmente, para entrenar, ajustar, evaluar o
+     alimentar sistemas de inteligencia artificial o aprendizaje automático,
+     o incluirlo en conjuntos de datos con ese fin;
+  g) eliminar, ocultar o alterar este aviso, las cabeceras de copyright de
+     los archivos o cualquier mención de autoría.
+
+
+4. CONFIDENCIALIDAD
+
+4.1. El código fuente, la arquitectura y la documentación técnica del
+     Software constituyen información confidencial y secreto empresarial de
+     la Autora.
+
+4.2. Quien acceda al Software por cualquier vía, incluida una relación
+     contractual, se obliga a no divulgar esa información a terceros sin
+     autorización escrita de la Autora. Esta obligación se mantiene aunque
+     termine la relación entre las partes.
+
+
+5. CLIENTES
+
+5.1. Los derechos de uso del cliente para el que se desarrolló el Software se
+     rigen exclusivamente por el contrato u orden de servicio celebrado entre
+     ese cliente y la Autora, y no por esta licencia.
+
+5.2. Salvo que ese contrato diga expresamente lo contrario, el cliente recibe
+     un derecho de uso no exclusivo, intransferible y limitado a su propia
+     operación, sin facultad para copiar, revender, sublicenciar ni entregar
+     el Software a terceros.
+
+
+6. TERMINACIÓN
+
+Cualquier uso no autorizado del Software termina de forma inmediata y
+automática cualquier permiso que se hubiera concedido. En ese caso, quien lo
+haya usado deberá dejar de usarlo y destruir todas las copias en su poder,
+sin perjuicio de las acciones legales que correspondan.
+
+
+7. ACCIONES LEGALES
+
+La infracción de esta licencia faculta a la Autora para ejercer las acciones
+civiles, administrativas y penales previstas en la ley, incluidas la
+indemnización de perjuicios, las medidas cautelares y las acciones por los
+delitos contra los derechos de autor establecidos en los artículos 270, 271
+y 272 del Código Penal colombiano (Ley 599 de 2000).
+
+
+8. AUSENCIA DE GARANTÍA
+
+El Software se ofrece "TAL CUAL", sin garantía de ningún tipo, expresa o
+implícita. En ningún caso la Autora será responsable por daños derivados de
+su uso no autorizado.
+
+
+9. MARCAS DE TERCEROS
+
+Los nombres, marcas y logotipos de terceros que aparecen en el Software,
+incluidos los del cliente, pertenecen a sus respectivos titulares y se
+muestran únicamente para identificar el proyecto.
+
+
+10. DIVISIBILIDAD
+
+Si alguna cláusula de esta licencia se declara inválida o inaplicable, las
+demás conservarán plena validez.
+
+
+11. LEY APLICABLE Y JURISDICCIÓN
+
+Esta licencia se rige por las leyes de la República de Colombia. Cualquier
+controversia relacionada con ella se someterá a los jueces competentes de
+Colombia.
+
+
+12. CONTACTO
+
+Para solicitar permisos, licencias de uso o desarrollos a la medida:
 https://github.com/rebeca07-pedrozo
 
----
 
-PROPRIETARY LICENSE — ALL RIGHTS RESERVED
+-------------------------------------------------------------------------------
 
-Copyright (c) 2026 Rebeca Pedrozo
+PROPRIETARY SOFTWARE LICENSE — ALL RIGHTS RESERVED
 
-This repository and all of its contents are proprietary. Viewing is permitted
-solely to evaluate the author's work. Copying, modifying, distributing, using
-or creating derivative works, in whole or in part, is prohibited without the
-author's prior written permission. Public visibility does not grant any
-license. The software is provided "as is", without warranty of any kind.
+Copyright (c) 2026 Rebeca Pedrozo. All rights reserved.
+
+This software, including its source code, architecture, logic, interface
+design and documentation, is the proprietary and confidential property of
+its author. Viewing is permitted solely to evaluate the author's work.
+Copying, modifying, distributing, using, running, offering as a service,
+reverse engineering, creating derivative works, or using it to train or feed
+artificial intelligence systems, in whole or in part, is prohibited without
+the author's prior written permission. Public visibility does not grant any
+license. Any unauthorized use automatically terminates any permission granted.
+The software is provided "as is", without warranty of any kind. This license
+is governed by the laws of the Republic of Colombia.

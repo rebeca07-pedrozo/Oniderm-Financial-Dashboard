@@ -1,4 +1,12 @@
 /**
+ * Oniderm · Gestión financiera y logística
+ * Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
+ * Software propietario y confidencial. Prohibido copiar, modificar, distribuir
+ * o usar este archivo, total o parcialmente, sin autorización escrita de la autora.
+ * Ver el archivo LICENSE.
+ */
+
+/**
  * InventarioMigracion.gs
  * Pasa las 6 hojas del Excel original a la hoja única INVENTARIO.
  * Se corre UNA vez a mano desde el editor: migrarInventario().
