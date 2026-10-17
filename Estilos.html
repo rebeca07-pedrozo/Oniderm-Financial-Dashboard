@@ -294,4 +294,42 @@
     .tab { flex: 1 1 40%; }
     .fila-vence { flex-wrap: wrap; }
   }
+
+  /* ===== NUEVO (pacientes) · PEGAR este bloque completo al final, justo antes de la etiqueta que cierra el style ===== */
+  #pacientesIngreso { max-width: 820px; margin: 16px auto 0; display: flex; flex-direction: column; gap: 14px; }
+  #pacientesIngreso.oculto { display: none; }
+  .bloque-pacientes h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .buscador { display: flex; gap: 8px; }
+  .buscador input { flex: 1; }
+  .estado-lista { margin: 10px 0 0; font-size: 12.5px; color: var(--texto-suave); }
+  .lista-ingresos { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .item-ingreso { border: 1px solid var(--verde-borde); border-radius: 12px; background: var(--blanco); overflow: hidden; }
+  .item-ingreso.abierto { border-color: var(--verde-claro); }
+  .item-cabeza {
+    width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+    padding: 11px 14px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; color: var(--texto);
+  }
+  .item-cabeza:hover { background: var(--verde-muy-claro); }
+  .item-nombre { font-weight: 600; font-size: 14px; }
+  .item-cc { font-weight: 400; font-size: 12px; color: var(--texto-suave); margin-left: 4px; }
+  .item-meta { grid-column: 1; font-size: 12.5px; color: var(--texto-suave); }
+  .etiqueta-factura { grid-row: 1 / span 2; grid-column: 2; font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 8px; background: var(--crema); color: var(--texto-suave); white-space: nowrap; }
+  .etiqueta-factura.pendiente { background: #FBF0D9; color: #A87A22; }
+  .etiqueta-factura.lista { background: var(--verde-muy-claro); color: var(--verde); }
+  .factura-rapida { display: flex; gap: 8px; padding: 0 14px 12px; }
+  .factura-rapida input { flex: 1; padding: 8px 10px; font-size: 13.5px; }
+  .detalle-ingreso { padding: 12px 14px 14px; border-top: 1px solid var(--verde-borde); background: #FBFAF8; }
+  .detalle-ingreso dl { display: grid; grid-template-columns: 130px 1fr; gap: 5px 12px; margin: 0 0 12px; font-size: 13px; }
+  .detalle-ingreso dt { color: var(--texto-suave); }
+  .detalle-ingreso dd { margin: 0; }
+  .edicion-ingreso .grid { margin-bottom: 8px; }
+  .pista-vieja { font-size: 12px; color: var(--texto-suave); margin: 0 0 10px; }
+  .enlace { border: 0; background: none; padding: 0; font: inherit; color: var(--verde); text-decoration: underline; cursor: pointer; }
+  @media (max-width: 620px) {
+    .detalle-ingreso dl { grid-template-columns: 1fr; gap: 0; }
+    .detalle-ingreso dd { margin-bottom: 6px; }
+    .item-cabeza { grid-template-columns: 1fr; }
+    .etiqueta-factura { grid-row: auto; grid-column: 1; justify-self: start; margin-top: 4px; }
+  }
+  /* ===== FIN NUEVO (pacientes) ===== */
 </style>

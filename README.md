@@ -49,6 +49,10 @@ clara, reglas de negocio y alertas.
 ### 💰 Finanzas
 - **Registro de ingresos:** búsqueda de servicios por código o nombre, formato de pesos mientras se escribe y
   **cálculo automático de la comisión BOLD (5 %)** cuando el pago es con tarjeta.
+- **Pacientes normalizados:** cédula, nombres y apellidos separados y obligatorios, con mayúsculas corregidas
+  y autocompletado cuando la cédula ya existe.
+- **Factura pendiente:** búsqueda de pacientes (nombre en cualquier orden o cédula), lista de ingresos sin número
+  de factura y edición de un ingreso ya guardado sin abrir la hoja de cálculo.
 - **Registro de egresos** por concepto contable, con soporte y número de soporte.
 - Cada movimiento se guarda en la hoja del semestre correcto según su fecha, con mes y año calculados.
 - **Tablero financiero:** lo que entró, lo que salió, margen y caja acumulada, comparados con el año anterior.
@@ -149,11 +153,13 @@ Parte del trabajo fue hacer el diagnóstico antes de escribir código. Las decis
 ├── InventarioMigracion.js  Migración única del Excel original (idempotente)
 ├── InventarioAlertas.js    Revisión diaria y correo de alertas
 ├── Logo.js                 Logo desde Drive (por ID) y conversión a base64
+├── Pacientes.js            Normalización de pacientes, búsqueda, pendientes de factura y edición
 ├── WebApp.js               doGet(), includes y diagnóstico
 ├── Index.html              Estructura de la interfaz
 ├── Estilos.html            Estilos con la paleta de la marca
 ├── Logica.html             Interfaz de finanzas y tablero
-└── LogicaLogistica.html    Interfaz de logística
+├── LogicaLogistica.html    Interfaz de logística
+└── LogicaPacientes.html    Búsqueda, pendientes de factura y edición de ingresos
 ```
 
 Todo el código está en español, con nombres simples y un archivo por responsabilidad.

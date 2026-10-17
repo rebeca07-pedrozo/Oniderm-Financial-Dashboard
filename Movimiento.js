@@ -11,23 +11,31 @@
  * Guarda ingresos y egresos. Aquí vive la regla de negocio (comisión, total, mes, año).
  */
 
+// ===== NUEVO (pacientes) · REEMPLAZAR toda la función guardarIngreso por esta =====
+// Cambios: nombres, apellidos y cédula obligatorios y normalizados (validarPaciente, en Pacientes.gs),
+// se crean solas las columnas NOMBRES / APELLIDOS / CEDULA, y "NOMBRE Y APELLIDO" se sigue llenando
+// (nombres + apellidos) para que el tablero y los registros viejos sigan igual.
 function guardarIngreso(datos) {
   validarBase(datos);
   if (!datos.codigo)      throw new Error('Falta el código del servicio.');
-  if (!datos.paciente)    throw new Error('Falta el nombre del paciente.');
+  const paciente = validarPaciente(datos);
   if (!datos.formaPago)   throw new Error('Falta la forma de pago.');
 
   const fecha = fechaValida(datos.fecha);
   const valor = Number(datos.valor);
-  const aplica = CONFIG.pagosConComision.map(sinTildes).indexOf(sinTildes(datos.formaPago)) >= 0;
-  const comision = aplica ? Math.round(valor * CONFIG.comision) : '';
+  const comision = calcularComision(valor, datos.formaPago);
+  const numFactura = String(datos.numFactura || '').trim();
 
   const hoja = getHojaPorFecha(fecha, CONFIG.ingresos);
+  asegurarColumnasPaciente(hoja);
   const fila = {
     fecha: fecha,
     codigo: datos.codigo,
     procedimiento: datos.procedimiento,
-    paciente: datos.paciente,
+    paciente: paciente.completo,
+    nombres: paciente.nombres,
+    apellidos: paciente.apellidos,
+    cedula: paciente.cedula,
     profesional: datos.profesional,
     cantidad: Number(datos.cantidad) || 1,
     valor: valor,
@@ -35,13 +43,14 @@ function guardarIngreso(datos) {
     comision: comision,
     total: valor - (comision || 0),
     observaciones: datos.observaciones || '',
-    factura: datos.factura || 'NO',
-    numFactura: datos.numFactura || '',
+    factura: numFactura ? 'SI' : (datos.factura || 'NO'),
+    numFactura: numFactura,
     mes: MESES[fecha.getMonth()],
     anio: fecha.getFullYear()
   };
   return escribirFila(hoja, COLS_INGRESO, fila);
 }
+// ===== FIN NUEVO (pacientes) =====
 
 function guardarEgreso(datos) {
   validarBase(datos);

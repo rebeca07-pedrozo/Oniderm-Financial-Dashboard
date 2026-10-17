@@ -1,0 +1,242 @@
+<!--
+  Oniderm · Gestión financiera y logística
+  Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
+  Software propietario y confidencial. Prohibido copiar, modificar, distribuir
+  o usar este archivo, total o parcialmente, sin autorización escrita de la autora.
+  Ver el archivo LICENSE.
+-->
+<!--
+  LogicaPacientes.html · ARCHIVO NUEVO (crearlo completo en el editor: + → HTML → "LogicaPacientes")
+  Búsqueda de pacientes, lista de pendientes de factura y edición de ingresos ya guardados.
+  Reutiliza de Logica.html: avisar(), catalogo.
+-->
+<script>
+  const listasP = { res: [], pend: [] };   // registros mostrados en cada lista
+  let abiertoP = null;                     // 'res|HOJA|FILA' del registro desplegado
+  let editandoP = null;                    // igual, si está en modo edición
+  const PARTICULAS_P = ['de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'do', 'dos', 'van', 'von'];
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cargarPendientes);
+  else cargarPendientes();
+
+  /* ---------- normalización (la misma regla que el servidor) ---------- */
+  function nombreBonito(texto) {
+    return String(texto || '').trim().replace(/\s+/g, ' ').toLowerCase().split(' ').map(function (p, i) {
+      if (i > 0 && PARTICULAS_P.indexOf(p) >= 0) return p;
+      return p.split('-').map(function (s) { return s.charAt(0).toUpperCase() + s.slice(1); }).join('-');
+    }).join(' ').trim();
+  }
+  function cedulaLimpia(t) { return String(t || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); }
+  function sinTildesP(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+  function normalizarCampoNombre(input) { input.value = nombreBonito(input.value); }
+
+  /* ---------- formulario: autocompletar por cédula ---------- */
+  function cedulaEscrita() {
+    const input = document.getElementById('i_cedula');
+    const pista = document.getElementById('i_pistaCedula');
+    const cc = cedulaLimpia(input.value);
+    input.value = cc;
+    pista.textContent = ''; pista.style.color = '';
+    if (cc.length < 5) return;
+    google.script.run
+      .withSuccessHandler(function (p) {
+        if (cedulaLimpia(input.value) !== cc) return;   // ya escribieron otra cédula
+        const nom = document.getElementById('i_nombres'), ape = document.getElementById('i_apellidos');
+        if (!p) { pista.textContent = 'Paciente nuevo'; return; }
+        if (!nom.value && !ape.value) {
+          nom.value = p.nombres; ape.value = p.apellidos;
+          pista.textContent = 'Paciente conocido · última visita ' + fechaCortaP(p.ultimaVisita);
+        } else if (sinTildesP(nom.value + ' ' + ape.value) !== sinTildesP(p.nombres + ' ' + p.apellidos)) {
+          pista.innerHTML = 'Esta cédula ya está registrada como <b>' + escP(p.nombres + ' ' + p.apellidos) + '</b>. ' +
+            '<button type="button" class="enlace" onclick="usarNombreRegistrado()">Usar ese nombre</button>';
+          pista.style.color = '#A87A22';
+          pista.dataset.nombres = p.nombres; pista.dataset.apellidos = p.apellidos;
+        } else {
+          pista.textContent = 'Paciente conocido · última visita ' + fechaCortaP(p.ultimaVisita);
+        }
+      })
+      .withFailureHandler(function () { /* sin conexión: no pasa nada, se valida al guardar */ })
+      .buscarPacientePorCedula(cc);
+  }
+
+  function usarNombreRegistrado() {
+    const pista = document.getElementById('i_pistaCedula');
+    document.getElementById('i_nombres').value = pista.dataset.nombres || '';
+    document.getElementById('i_apellidos').value = pista.dataset.apellidos || '';
+    pista.textContent = 'Nombre tomado del registro anterior'; pista.style.color = '';
+  }
+
+  /* ---------- búsqueda ---------- */
+  function buscarPaciente() {
+    const texto = document.getElementById('p_buscar').value.trim();
+    const estado = document.getElementById('p_estadoBusqueda');
+    if (texto.length < 3) { estado.textContent = 'Escribe al menos 3 letras o números.'; return; }
+    estado.textContent = 'Buscando…';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        listasP.res = r.resultados;
+        abiertoP = editandoP = null;
+        estado.textContent = !r.total ? 'No encontré ingresos con "' + texto + '".'
+          : r.total > r.resultados.length ? 'Mostrando los ' + r.resultados.length + ' más recientes de ' + r.total + '. Escribe más para afinar.'
+          : r.total + (r.total === 1 ? ' ingreso encontrado.' : ' ingresos encontrados.') + ' Toca uno para ver el detalle.';
+        pintarListaP('res');
+      })
+      .withFailureHandler(function (e) { estado.textContent = e.message; })
+      .buscarIngresos(texto);
+  }
+
+  /* ---------- pendientes de factura ---------- */
+  function cargarPendientes() {
+    const estado = document.getElementById('p_estadoPendientes');
+    if (!estado) return;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        listasP.pend = r.pendientes;
+        const n = r.pendientes.length;
+        const conteo = document.getElementById('p_conteoPendientes');
+        conteo.textContent = n; conteo.classList.toggle('oculto', !n);
+        estado.textContent = n ? 'Ingresos de los últimos ' + r.dias + ' días marcados con factura y sin número. Escribe el número y guarda.'
+                               : 'No hay ingresos pendientes de número de factura en los últimos ' + r.dias + ' días.';
+        pintarListaP('pend');
+      })
+      .withFailureHandler(function (e) { estado.textContent = 'No se pudo cargar: ' + e.message; })
+      .getPendientesFactura();
+  }
+
+  function guardarFacturaRapida(lista, i, boton) {
+    const r = listasP[lista][i];
+    const input = document.getElementById('fr_' + lista + '_' + i);
+    const num = input.value.trim();
+    if (!num) { avisar('Escribe el número de factura.', true); input.focus(); return; }
+    boton.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (res) { avisar(res.mensaje, false); actualizarEnListas(res.registro); cargarPendientes(); })
+      .withFailureHandler(function (e) { boton.disabled = false; avisar(e.message, true); })
+      .actualizarIngreso(refP(r), { numFactura: num, factura: 'SI' });
+  }
+
+  /* ---------- pintar listas ---------- */
+  function claveP(lista, r) { return lista + '|' + r.hoja + '|' + r.fila; }
+  function refP(r) { return { hoja: r.hoja, fila: r.fila, huella: r.huella }; }
+
+  function pintarListaP(lista) {
+    const ul = document.getElementById(lista === 'res' ? 'p_resultados' : 'p_pendientes');
+    ul.innerHTML = listasP[lista].map(function (r, i) { return itemP(lista, r, i); }).join('');
+  }
+
+  function itemP(lista, r, i) {
+    const k = claveP(lista, r);
+    const abierto = abiertoP === k;
+    const etiqueta = r.numFactura
+      ? '<span class="etiqueta-factura lista">Factura ' + escP(r.numFactura) + '</span>'
+      : r.factura === 'SI' ? '<span class="etiqueta-factura pendiente">Sin número</span>'
+      : '<span class="etiqueta-factura">Sin factura</span>';
+    let html = '<li class="item-ingreso' + (abierto ? ' abierto' : '') + '">' +
+      '<button type="button" class="item-cabeza" aria-expanded="' + abierto + '" onclick="alternarIngreso(\'' + lista + '\',' + i + ')">' +
+        '<span class="item-nombre">' + escP(r.paciente || 'Sin nombre') + (r.cedula ? ' <span class="item-cc">CC ' + escP(r.cedula) + '</span>' : '') + '</span>' +
+        '<span class="item-meta">' + fechaCortaP(r.fecha) + ' · ' + escP(r.codigo) + ' ' + escP(nombreBonito(r.procedimiento)) + ' · ' + pesosP(r.valor) + '</span>' +
+        etiqueta +
+      '</button>';
+    if (lista === 'pend') {
+      html += '<div class="factura-rapida">' +
+        '<input type="text" id="fr_' + lista + '_' + i + '" placeholder="No. de factura" aria-label="Número de factura de ' + escP(r.paciente) + '"' +
+        ' onkeydown="if (event.key === \'Enter\') this.nextElementSibling.click()">' +
+        '<button type="button" class="boton-chico primario" onclick="guardarFacturaRapida(\'' + lista + '\',' + i + ', this)">Guardar</button></div>';
+    }
+    if (abierto) html += editandoP === k ? edicionP(lista, r, i) : detalleP(lista, r, i);
+    return html + '</li>';
+  }
+
+  function alternarIngreso(lista, i) {
+    const k = claveP(lista, listasP[lista][i]);
+    abiertoP = abiertoP === k ? null : k;
+    editandoP = null;
+    pintarListaP(lista);
+  }
+
+  function detalleP(lista, r, i) {
+    const filas = [
+      ['Cédula', r.cedula || '—'], ['Nombres', r.nombres || '—'], ['Apellidos', r.apellidos || '—'],
+      ['Fecha', fechaCortaP(r.fecha)], ['Servicio', r.codigo + ' · ' + nombreBonito(r.procedimiento)],
+      ['Profesional', r.profesional || '—'], ['Valor', pesosP(r.valor)], ['Forma de pago', r.formaPago || '—'],
+      ['Comisión', r.comision ? pesosP(r.comision) : 'No aplica'], ['Total', pesosP(r.total || r.valor)],
+      ['¿Factura?', r.factura], ['No. factura', r.numFactura || '—'], ['Observaciones', r.observaciones || '—'],
+      ['Ubicación', r.hoja + ', fila ' + r.fila]
+    ];
+    return '<div class="detalle-ingreso"><dl>' + filas.map(function (f) {
+      return '<dt>' + f[0] + '</dt><dd>' + escP(f[1]) + '</dd>';
+    }).join('') + '</dl>' +
+      (!r.nombres ? '<p class="pista-vieja">Registro anterior al cambio: al editarlo puedes separar nombres, apellidos y agregar la cédula.</p>' : '') +
+      '<button type="button" class="boton-chico primario" onclick="editarIngreso(\'' + lista + '\',' + i + ')">Editar datos</button></div>';
+  }
+
+  function editarIngreso(lista, i) {
+    editandoP = claveP(lista, listasP[lista][i]);
+    pintarListaP(lista);
+    const primero = document.querySelector('.edicion-ingreso input');
+    if (primero) primero.focus();
+  }
+
+  function edicionP(lista, r, i) {
+    const opciones = function (valores, actual) {
+      const lista = (valores || []).slice();
+      if (actual && lista.indexOf(actual) < 0) lista.unshift(actual);
+      return lista.map(function (v) { return '<option' + (v === actual ? ' selected' : '') + '>' + escP(v) + '</option>'; }).join('');
+    };
+    const cat = (typeof catalogo !== 'undefined' && catalogo) ? catalogo : {};
+    const campo = function (etq, html, clase) { return '<label class="campo ' + (clase || 'medio') + '"><span>' + etq + '</span>' + html + '</label>'; };
+    return '<div class="detalle-ingreso edicion-ingreso"><div class="grid">' +
+      campo('Cédula', '<input type="text" id="ed_cedula" value="' + escP(r.cedula) + '" inputmode="numeric">') +
+      campo('Nombres', '<input type="text" id="ed_nombres" value="' + escP(r.nombres) + '" onblur="normalizarCampoNombre(this)">') +
+      campo('Apellidos', '<input type="text" id="ed_apellidos" value="' + escP(r.apellidos) + '" onblur="normalizarCampoNombre(this)">') +
+      campo('Profesional', '<select id="ed_profesional">' + opciones(cat.profesionales, r.profesional) + '</select>') +
+      campo('Valor', '<input type="text" id="ed_valor" inputmode="numeric" value="' + pesosP(r.valor) + '" oninput="formatearPesos(this)">') +
+      campo('Forma de pago', '<select id="ed_formaPago">' + opciones(cat.formasPago, r.formaPago) + '</select>') +
+      campo('¿Factura?', '<select id="ed_factura">' + opciones(['NO', 'SI'], r.factura) + '</select>', 'chico') +
+      campo('No. factura', '<input type="text" id="ed_numFactura" value="' + escP(r.numFactura) + '">', 'chico') +
+      campo('Observaciones', '<input type="text" id="ed_observaciones" value="' + escP(r.observaciones) + '">', 'total') +
+      '</div><p class="pista-vieja">La fecha y el servicio no se cambian aquí. Si están mal, corrígelos en la hoja.</p>' +
+      '<div class="acciones-dup">' +
+        '<button type="button" class="boton-chico primario" onclick="guardarEdicion(\'' + lista + '\',' + i + ', this)">Guardar cambios</button>' +
+        '<button type="button" class="boton-chico suave" onclick="cancelarEdicion(\'' + lista + '\')">Cancelar</button>' +
+      '</div></div>';
+  }
+
+  function cancelarEdicion(lista) { editandoP = null; pintarListaP(lista); }
+
+  function guardarEdicion(lista, i, boton) {
+    const r = listasP[lista][i];
+    const v = function (id) { return document.getElementById(id).value.trim(); };
+    const cambios = {
+      cedula: v('ed_cedula'), nombres: v('ed_nombres'), apellidos: v('ed_apellidos'),
+      profesional: v('ed_profesional'), valor: Number(v('ed_valor').replace(/\D/g, '')) || 0,
+      formaPago: v('ed_formaPago'), factura: v('ed_factura'), numFactura: v('ed_numFactura'),
+      observaciones: v('ed_observaciones')
+    };
+    boton.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        avisar(res.mensaje, false);
+        editandoP = null;
+        actualizarEnListas(res.registro);
+        cargarPendientes();
+      })
+      .withFailureHandler(function (e) { boton.disabled = false; avisar(e.message, true); })
+      .actualizarIngreso(refP(r), cambios);
+  }
+
+  /** Reemplaza el registro editado en la lista de búsqueda, para que se vea el cambio sin buscar de nuevo. */
+  function actualizarEnListas(nuevo) {
+    listasP.res = listasP.res.map(function (r) { return (r.hoja === nuevo.hoja && r.fila === nuevo.fila) ? nuevo : r; });
+    pintarListaP('res');
+  }
+
+  /* ---------- utilidades ---------- */
+  function fechaCortaP(iso) { if (!iso) return ''; const p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function pesosP(n) { return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CO'); }
+  function escP(t) {
+    return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+</script>

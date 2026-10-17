@@ -37,7 +37,12 @@ const COLS_INGRESO = {
   factura:       ['SOLICITA FACTURA'],
   numFactura:    ['No FACTURA'],
   mes:           ['MES'],
-  anio:          ['AÑO']
+  anio:          ['AÑO'],
+  // ===== NUEVO (pacientes) · agregar estas 3 líneas, y la coma después de ['AÑO'] =====
+  nombres:       ['NOMBRES'],
+  apellidos:     ['APELLIDOS'],
+  cedula:        ['CEDULA', 'CÉDULA']
+  // ===== FIN NUEVO (pacientes) =====
 };
 
 const COLS_EGRESO = {
@@ -50,7 +55,12 @@ const COLS_EGRESO = {
   numSoporte:    ['NO. SOPORTE', 'NO SOPORTE'],
   observaciones: ['OBSERVACIONES'],
   mes:           ['MES'],
-  anio:          ['AÑO']
+  anio:          ['AÑO'],
+  // ===== NUEVO (pacientes) · agregar estas 3 líneas, y la coma después de ['AÑO'] =====
+  nombres:       ['NOMBRES'],
+  apellidos:     ['APELLIDOS'],
+  cedula:        ['CEDULA', 'CÉDULA']
+  // ===== FIN NUEVO (pacientes) =====
 };
 
 /* ===================== LOGÍSTICA ===================== */

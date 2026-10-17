@@ -53,10 +53,22 @@
         <small id="i_nombre" class="pista"></small>
       </label>
 
-      <label class="campo grande">
-        <span>Paciente</span>
-        <input type="text" id="i_paciente" placeholder="Nombre y apellido">
+      <!-- ===== NUEVO (pacientes) · REEMPLAZA el campo "Paciente" (i_paciente) por estos tres ===== -->
+      <div class="campo medio">
+        <span>Cédula</span>
+        <input type="text" id="i_cedula" inputmode="numeric" placeholder="Sin puntos" autocomplete="off"
+               aria-label="Cédula" onblur="cedulaEscrita()">
+        <small id="i_pistaCedula" class="pista"></small>
+      </div>
+      <label class="campo medio">
+        <span>Nombres</span>
+        <input type="text" id="i_nombres" placeholder="Ej. Lina Marcela" autocomplete="off" onblur="normalizarCampoNombre(this)">
       </label>
+      <label class="campo medio">
+        <span>Apellidos</span>
+        <input type="text" id="i_apellidos" placeholder="Ej. Primo Losada" autocomplete="off" onblur="normalizarCampoNombre(this)">
+      </label>
+      <!-- ===== FIN NUEVO (pacientes) ===== -->
 
       <label class="campo medio">
         <span>Profesional</span>
@@ -89,7 +101,8 @@
 
       <label class="campo chico oculto" id="cajaNumFactura">
         <span>No. factura</span>
-        <input type="text" id="i_numFactura">
+        <!-- NUEVO (pacientes): solo se agregó el placeholder -->
+        <input type="text" id="i_numFactura" placeholder="Opcional: luego">
       </label>
 
       <label class="campo total">
@@ -105,6 +118,27 @@
 
     <button class="guardar" onclick="guardar('ingreso')">Guardar ingreso</button>
   </section>
+
+  <!-- ===== NUEVO (pacientes) · PEGAR esta sección completa justo después de </section> del formulario de ingreso ===== -->
+  <section id="pacientesIngreso" class="pacientes">
+    <div class="tarjeta bloque-pacientes">
+      <h2>Buscar paciente</h2>
+      <div class="buscador">
+        <input type="search" id="p_buscar" placeholder="Nombre, apellido o cédula" aria-label="Buscar paciente"
+               onkeydown="if (event.key === 'Enter') buscarPaciente()">
+        <button type="button" class="boton-chico primario" onclick="buscarPaciente()">Buscar</button>
+      </div>
+      <p id="p_estadoBusqueda" class="estado-lista"></p>
+      <ul id="p_resultados" class="lista-ingresos"></ul>
+    </div>
+
+    <div class="tarjeta bloque-pacientes">
+      <h2>Pendientes de número de factura <span id="p_conteoPendientes" class="contador oculto"></span></h2>
+      <p id="p_estadoPendientes" class="estado-lista">Cargando…</p>
+      <ul id="p_pendientes" class="lista-ingresos"></ul>
+    </div>
+  </section>
+  <!-- ===== FIN NUEVO (pacientes) ===== -->
 
   <!-- ====== EGRESO ====== -->
   <section id="formEgreso" class="tarjeta oculto">
@@ -403,5 +437,7 @@
 <script>var TAB_INICIAL = <?!= JSON.stringify(tabInicial || '') ?>;</script>
 <?!= incluir('Logica'); ?>
 <?!= incluir('LogicaLogistica'); ?>
+<!-- NUEVO (pacientes): agregar esta línea -->
+<?!= incluir('LogicaPacientes'); ?>
 </body>
 </html>

@@ -89,6 +89,10 @@
     document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || tab === 'log' || !hayRecientes);
     if (tab === 'dash') cargarDashboard();
     if (tab === 'log') cargarInventario();
+    // ===== NUEVO (pacientes) · agregar estas 2 líneas al final de cambiarTab =====
+    document.getElementById('pacientesIngreso').classList.toggle('oculto', tab !== 'ingreso');
+    if (tab === 'ingreso') cargarPendientes();
+    // ===== FIN NUEVO (pacientes) =====
   }
 
   function verFactura() {
@@ -154,7 +158,10 @@
         fecha: valor('i_fecha'),
         codigo: s.codigo,
         procedimiento: s.nombre,
-        paciente: valor('i_paciente'),
+        // NUEVO (pacientes): reemplaza la línea "paciente: valor('i_paciente')," por estas 3
+        cedula: valor('i_cedula'),
+        nombres: valor('i_nombres'),
+        apellidos: valor('i_apellidos'),
         profesional: valor('i_profesional'),
         cantidad: valor('i_cantidad'),
         valor: numero('i_valor'),
@@ -186,6 +193,7 @@
         agregarReciente(tipo, datos);
         limpiar(tipo);
         resumen = null;
+        if (tipo === 'ingreso') cargarPendientes();   // NUEVO (pacientes): agregar esta línea
       })
       .withFailureHandler(function (e) {
         bloquear(false);
@@ -196,21 +204,24 @@
   function limpiar(tipo) {
     const p = tipo === 'ingreso' ? 'i_' : 'e_';
     const campos = tipo === 'ingreso'
-      ? ['codigo', 'paciente', 'valor', 'numFactura', 'observaciones']
+      ? ['codigo', 'cedula', 'nombres', 'apellidos', 'valor', 'numFactura', 'observaciones']   // NUEVO (pacientes): 'paciente' → 'cedula', 'nombres', 'apellidos'
       : ['descripcion', 'valor', 'numSoporte', 'observaciones'];
     campos.forEach(function (c) { document.getElementById(p + c).value = ''; });
     document.getElementById(p + 'cantidad').value = 1;
-    if (tipo === 'ingreso') { verServicio(); calcular(); }
-    document.getElementById(p === 'i_' ? 'i_paciente' : 'e_descripcion').focus();
+    if (tipo === 'ingreso') { verServicio(); calcular(); document.getElementById('i_pistaCedula').textContent = ''; }   // NUEVO (pacientes): limpia la pista de la cédula
+    document.getElementById(p === 'i_' ? 'i_cedula' : 'e_descripcion').focus();   // NUEVO (pacientes): 'i_paciente' → 'i_cedula'
   }
 
   function agregarReciente(tipo, datos) {
     document.getElementById('recientes').classList.remove('oculto');
+    // NUEVO (pacientes): el texto usa nombres y apellidos, y se escribe con textContent (no innerHTML)
     const texto = tipo === 'ingreso'
-      ? datos.codigo + ' · ' + datos.paciente
+      ? datos.codigo + ' · ' + nombreBonito(datos.nombres) + ' ' + nombreBonito(datos.apellidos)
       : datos.concepto + ' · ' + datos.descripcion;
     const li = document.createElement('li');
-    li.innerHTML = '<span>' + texto + '</span><b>' + (tipo === 'egreso' ? '−' : '') + pesos(datos.valor) + '</b>';
+    const span = document.createElement('span'); span.textContent = texto;
+    const b = document.createElement('b'); b.textContent = (tipo === 'egreso' ? '−' : '') + pesos(datos.valor);
+    li.appendChild(span); li.appendChild(b);
     const lista = document.getElementById('listaRecientes');
     lista.insertBefore(li, lista.firstChild);
   }
