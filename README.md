@@ -141,6 +141,112 @@ Parte del trabajo fue hacer el diagnóstico antes de escribir código. Las decis
 | Columna de cantidad inexistente en dispositivos | 140 registros | Entran en 0, se avisa que el total de unidades está subestimado y se corrige desde la tabla |
 | Fecha de ingreso en 8 formatos distintos | 262 registros | Se interpretan todos; el único ilegible queda reportado |
 
+## Arquitectura de datos · As-Is por dominios
+
+Oniderm es, en el fondo, una operación que vive de sus datos: cada atención genera un ingreso, cada compra un
+egreso, cada insumo una fecha de vencimiento que vigilar. Por eso la arquitectura se describe por **dominios de
+datos**. Cada dominio tiene sus entidades, quién las produce, quién las usa y qué controles de calidad tiene hoy.
+
+Esta es la foto del estado actual (**As-Is**), no la ideal. Las brechas del final son el punto de partida del
+To-Be.
+
+### Mapa de dominios
+
+```mermaid
+flowchart LR
+    subgraph MAE["Maestros"]
+        CC[("CUENTAS CONTABLES<br/>servicios · profesionales<br/>formas de pago · conceptos · soportes")]
+    end
+    subgraph FIN["Finanzas"]
+        ING[("INGRESOS I y II SEMESTRE")]
+        EGR[("EGRESOS I y II SEMESTRE")]
+    end
+    subgraph PAC["Pacientes"]
+        P["Cédula · nombres · apellidos<br/>(columnas dentro de INGRESOS)"]
+    end
+    subgraph LOG["Logística"]
+        INV[("INVENTARIO<br/>libro aparte")]
+        ORI[("6 hojas originales<br/>solo lectura")]
+    end
+    subgraph ANA["Analítica"]
+        TF["Tablero financiero"]
+        TL["Tablero de logística"]
+        PF["Pendientes de factura"]
+    end
+    subgraph NOT["Notificaciones"]
+        MAIL["Correo diario de alertas"]
+    end
+
+    CC -->|listas y nombres de servicio| ING
+    CC -->|conceptos y soportes| EGR
+    P --- ING
+    ORI -->|migración única| INV
+    ING --> TF
+    EGR --> TF
+    CC -->|código → servicio| TF
+    ING --> PF
+    INV --> TL
+    INV -->|solo si algo empeora| MAIL
+```
+
+### Inventario de dominios
+
+| Dominio | Almacenamiento | Entidad principal y llave | Produce | Consume | Frecuencia |
+| --- | --- | --- | --- | --- | --- |
+| **Maestros** | Libro de finanzas · hoja `CUENTAS CONTABLES` | Servicio (`CODIGO`), más listas de profesionales, formas de pago, conceptos de gasto y soportes | Administración, a mano en la hoja | Formularios, validaciones de la hoja, tablero | Cuando cambia el portafolio o el equipo |
+| **Finanzas · Ingresos** | Libro de finanzas · `INGRESOS I SEMESTRE` y `INGRESOS II SEMESTRE` | Atención cobrada. No hay ID: la fila se identifica con una huella `fecha + paciente + código + valor` | Recepción y caja, desde la app | Tablero financiero, búsqueda de pacientes, pendientes de factura | Cada atención |
+| **Finanzas · Egresos** | Libro de finanzas · `EGRESOS I SEMESTRE` y `EGRESOS II SEMESTRE` | Gasto, sin ID | Administración, desde la app | Tablero financiero | Cada gasto |
+| **Pacientes** | Columnas `CEDULA`, `NOMBRES` y `APELLIDOS` dentro de las hojas de ingresos (desde v1.1). Antes, solo `NOMBRE Y APELLIDO` en texto libre | Paciente (`CEDULA`, normalizada a solo dígitos) | Recepción, al registrar el ingreso | Autocompletado, búsqueda y edición | Cada atención |
+| **Logística** | Libro de inventario aparte (`ID_LIBRO_INVENTARIO`) · hoja `INVENTARIO` de 26 columnas | Insumo por lote (`ID` consecutivo). Duplicado = `producto + lote + vencimiento` | Responsable de logística, desde la app | Tablero de logística, contador de la pestaña, alertas | Cada ingreso o baja de insumo |
+| **Analítica** | Se calcula al vuelo, no se guarda. Caché de 6 h (catálogo) y 10 min (inventario) | Agregados por mes, servicio, concepto y estado | El servidor de Apps Script | Dirección del consultorio | Cada vez que se abre el tablero |
+| **Notificaciones** | Columna `ULTIMO_ESTADO` en `INVENTARIO` y propiedad `CORREOS_ALERTA` | Cambio de estado de un insumo | Disparador diario de las 7 a. m. (hora de Bogotá) | Dirección y logística | Diaria, solo si algo empeoró |
+
+### Productos de datos que existen hoy
+
+| Producto | Origen | Qué entrega | Función |
+| --- | --- | --- | --- |
+| Resumen financiero | Ingresos + egresos + maestros | Ingreso neto de comisión, egreso, comisión BOLD y atenciones por mes; ingresos por servicio y gastos por concepto; avisos de calidad | `getResumen()` |
+| Tablero de logística | Inventario | Conteo por estado del semáforo, vencimientos por mes, tabla priorizada y sección "Para revisar" | `getTableroInventario()` |
+| Contador de logística | Inventario | Vencidos y rojos activos, en la pestaña | `getContadorLogistica()` |
+| Pendientes de factura | Ingresos | Ingresos con factura solicitada y sin número, de los últimos 45 días | `getPendientesFactura()` |
+| Historia por paciente | Ingresos | Atenciones de un paciente (procedimiento, fecha, valor, factura) | `buscarIngresos()` |
+| Alerta de vencimientos | Inventario | Correo con los insumos que empeoraron desde ayer | `revisarVencimientos()` |
+
+### Controles de calidad por dominio
+
+| Dominio | Al escribir | Al leer |
+| --- | --- | --- |
+| **Maestros** | Las listas de la hoja se pueden reconstruir con `rehacerListas()` | Se ignoran filas de título y valores repetidos |
+| **Ingresos** | Campos obligatorios; valor > 0; validación contra las listas desplegables antes de guardar; comisión calculada, no digitada; escritura con candado y reversión si una celda falla | Fechas en cualquier formato; valores como texto (`$ 210.000,00`); códigos `CO1` = `C01`; fechas ilegibles, fuera de rango y valores atípicos (> $50 M) se reportan como avisos, no se suman |
+| **Pacientes** | Cédula de 5 a 15 dígitos; nombres y apellidos obligatorios y en formato de nombre propio | Búsqueda por nombre en cualquier orden y sin tildes; la huella impide editar una fila que cambió |
+| **Egresos** | Concepto y descripción obligatorios; validación contra listas | Mismos avisos que ingresos |
+| **Logística** | Columnas exactas; lote, INVIMA y serie como texto; detección de duplicados; nunca se borra (baja con fecha y motivo) | Semáforo calculado cada día; fechas ilegibles reportadas; estado propio "Sin fecha" |
+
+### Clasificación y acceso
+
+- **Datos personales sensibles.** Un ingreso relaciona la cédula y el nombre de un paciente con un procedimiento
+  dermatológico. En Colombia es dato sensible de salud (Ley 1581 de 2012), así que el libro de finanzas solo se
+  comparte con el personal que lo necesita.
+- **Separación por dominio.** Finanzas e inventario están en libros distintos: logística trabaja el inventario sin
+  ver la facturación.
+- **Configuración fuera del código.** Los IDs de libros, el logo y los correos están en Script Properties, no en el
+  repositorio.
+
+### Brechas del As-Is
+
+Lo que se sabe hoy y todavía no se resuelve:
+
+| Brecha | Impacto | Dirección para el To-Be |
+| --- | --- | --- |
+| No existe un maestro de pacientes: el paciente vive dentro de cada fila de ingreso | Si alguien corrige un nombre, solo cambia esa atención | Hoja `PACIENTES` con la cédula como llave |
+| Los registros anteriores a v1.1 no tienen cédula | La historia de un paciente antiguo solo se encuentra por nombre | Completar la cédula al editar cada atención antigua |
+| Los movimientos no tienen ID; se identifican con una huella | Dos atenciones idénticas el mismo día son indistinguibles | ID consecutivo por movimiento, como en inventario |
+| Las listas tienen dos fuentes: `CUENTAS CONTABLES` y la validación de cada hoja | Un profesional retirado puede seguir apareciendo hasta correr `rehacerListas()` | Una sola fuente de verdad para los maestros |
+| Hojas partidas por semestre | Cada consulta lee y une dos hojas; el esquema puede variar entre ellas | Una tabla de hechos por dominio, con el semestre como columna |
+| Egresos e inventario no están conectados | No se sabe cuánto costó cada lote ni el consumo real | Relacionar la compra (egreso) con el lote (inventario) |
+| No hay registro de cambios en finanzas (inventario sí anota en observaciones) | No hay auditoría de quién editó un ingreso y cuándo | Bitácora de cambios por movimiento |
+| La analítica se calcula en cada consulta, sin histórico guardado | Sin series históricas fuera de las hojas operativas | Capa de agregados mensuales, o exportación a un almacén (por ejemplo, BigQuery) cuando el volumen lo pida |
+
 ## Estructura del proyecto
 
 ```
