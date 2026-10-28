@@ -612,7 +612,7 @@ número. `ATENCION` y `EGRESO` no tienen identificador propio.
 
 **Dominios de datos.** El detalle por dominio de datos (maestros, finanzas, pacientes, logística, analítica y
 notificaciones), con sus productos de datos y controles de calidad, está en la sección
-[Arquitectura de datos · As-Is por dominios](README.md#arquitectura-de-datos--as-is-por-dominios) del README.
+[Arquitectura de datos · As-Is por dominios](../README.md#arquitectura-de-datos--as-is-por-dominios) del README.
 Este punto se desarrollará completo en el Punto 2.
 
 **Calidad de datos encontrada**

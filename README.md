@@ -265,7 +265,8 @@ Lo que se sabe hoy y todavía no se resuelve:
 ├── Estilos.html            Estilos con la paleta de la marca
 ├── Logica.html             Interfaz de finanzas y tablero
 ├── LogicaLogistica.html    Interfaz de logística
-└── LogicaPacientes.html    Búsqueda, pendientes de factura y edición de ingresos
+├── LogicaPacientes.html    Búsqueda, pendientes de factura y edición de ingresos
+└── arquitectura-empresarial/  Taller de arquitectura empresarial (TOGAF): documento, presupuesto y cronograma
 ```
 
 Todo el código está en español, con nombres simples y un archivo por responsabilidad.
