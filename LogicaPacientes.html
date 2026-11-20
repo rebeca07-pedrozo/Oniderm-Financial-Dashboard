@@ -95,8 +95,9 @@
         const n = r.pendientes.length;
         const conteo = document.getElementById('p_conteoPendientes');
         conteo.textContent = n; conteo.classList.toggle('oculto', !n);
-        estado.textContent = n ? 'Ingresos de los últimos ' + r.dias + ' días marcados con factura y sin número. Escribe el número y guarda.'
-                               : 'No hay ingresos pendientes de número de factura en los últimos ' + r.dias + ' días.';
+        // NUEVO (pulido): la frase habla de los datos, no de cómo usar la lista
+        estado.textContent = n ? 'Pidieron factura en los últimos ' + r.dias + ' días y aún no tienen número.'
+                               : 'No hay facturas pendientes de número en los últimos ' + r.dias + ' días.';
         pintarListaP('pend');
       })
       .withFailureHandler(function (e) { estado.textContent = 'No se pudo cargar: ' + e.message; })
@@ -119,9 +120,17 @@
   function claveP(lista, r) { return lista + '|' + r.hoja + '|' + r.fila; }
   function refP(r) { return { hoja: r.hoja, fila: r.fila, huella: r.huella }; }
 
+  // NUEVO (pulido): la lista de pendientes muestra las 3 más recientes y un botón para ver el resto
+  const PENDIENTES_VISIBLES = 3;
+  let verTodosPend = false;
+
   function pintarListaP(lista) {
     const ul = document.getElementById(lista === 'res' ? 'p_resultados' : 'p_pendientes');
-    ul.innerHTML = listasP[lista].map(function (r, i) { return itemP(lista, r, i); }).join('');
+    const todos = listasP[lista];
+    const cortar = lista === 'pend' && !verTodosPend && todos.length > PENDIENTES_VISIBLES;
+    const visibles = cortar ? todos.slice(0, PENDIENTES_VISIBLES) : todos;
+    ul.innerHTML = visibles.map(function (r, i) { return itemP(lista, r, i); }).join('') +
+      (cortar ? '<li class="ver-todos"><button type="button" class="boton-chico" onclick="verTodosPend = true; pintarListaP(\'pend\')">Ver las ' + todos.length + '</button></li>' : '');
   }
 
   function itemP(lista, r, i) {
@@ -233,7 +242,8 @@
 
   /* ---------- utilidades ---------- */
   function fechaCortaP(iso) { if (!iso) return ''; const p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
-  function pesosP(n) { return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CO'); }
+  // NUEVO (pulido): espacio que no se parte entre "$" y la cifra
+  function pesosP(n) { return '$\u00a0' + Math.round(Number(n) || 0).toLocaleString('es-CO'); }
   function escP(t) {
     return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];

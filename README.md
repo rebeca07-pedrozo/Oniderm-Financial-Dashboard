@@ -128,8 +128,9 @@ puede trabajar el inventario sin ver la facturación. Se unificó la interfaz, n
   Todo se interpreta, y lo que no se puede interpretar se reporta en vez de esconderse.
 - **Guardado sin filas a medias.** Antes de escribir, cada valor se valida contra las listas desplegables de la hoja.
   Si Sheets rechaza una celda, se deshace lo escrito y el mensaje dice exactamente qué columna y qué valor falló.
-- **Accesible y responsive.** Los estados nunca se comunican solo con color (punto + palabra), el diseño funciona en
-  celular y la paleta respeta la identidad visual de la marca.
+- **Accesible y responsive.** Los estados nunca se comunican solo con color (punto + palabra), todo texto cumple el
+  contraste mínimo de 4,5:1, el foco del teclado se ve y el diseño funciona en celular. El verde de la marca va en
+  los datos; para texto y botones se usa su tono oscuro, que sí se lee.
 
 ### Calidad de datos encontrada en el inventario
 

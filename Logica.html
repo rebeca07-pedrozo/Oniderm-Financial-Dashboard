@@ -68,7 +68,8 @@
     llenarSelect('e_concepto', datos.conceptos);
     llenarSelect('e_soporte', datos.soportes, true);
 
-    estado(datos.servicios.length + ' servicios cargados');
+    // NUEVO (pulido): si todo cargó bien no se muestra nada; el texto de arriba queda para avisos y errores
+    estado('');
   }
 
   function llenarSelect(id, valores, conVacio) {
@@ -253,8 +254,9 @@
   const VERDE = '#4BB69E';
   const VERDE_CLARO = '#8ECFBE';
   const BEIGE = '#CDBFAF';
-  const GRIS = '#858581';
-  const GRIS_FUERTE = '#4A4A46';
+  // NUEVO (pulido): grises más oscuros para que los ejes se lean (antes #858581 y #4A4A46)
+  const GRIS = '#66665F';
+  const GRIS_FUERTE = '#3F403C';
   const REJILLA = '#E8F5F1';
 
   const MES_LARGO = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -541,7 +543,7 @@
     let html = '<table class="tabla"><thead><tr><th>' + bonito(UNIDAD_GRUPO[modo].uno) + '</th><th>Entró</th><th>Salió</th><th>Te quedó</th><th>Atenciones</th></tr></thead><tbody>';
     grupos.forEach(function (g) {
       const saldo = g.ingreso - g.egreso;
-      html += '<tr><td>' + g.larga + (g.enCurso ? ' <span style="color:#858581">· en curso</span>' : '') + '</td>' +
+      html += '<tr><td>' + g.larga + (g.enCurso ? ' <span style="color:#66665F">· en curso</span>' : '') /* NUEVO (pulido): gris que se lee */ + '</td>' +
               '<td>' + pesos(g.ingreso) + '</td><td>' + pesos(g.egreso) + '</td>' +
               '<td class="' + (saldo < 0 ? 'negativo' : '') + '">' + pesos(saldo) + '</td>' +
               '<td>' + g.atenciones + '</td></tr>';

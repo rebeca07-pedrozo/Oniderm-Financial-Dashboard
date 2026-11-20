@@ -131,7 +131,8 @@
       label: function (c) { return ' ' + c.parsed.y + (c.parsed.y === 1 ? ' producto' : ' productos'); }
     };
     cfg.scales = {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: GRIS, font: { size: 11.5 } } },
+      // NUEVO (pulido): etiquetas de los meses derechas, sin girar; se saltan las que no caben
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: GRIS, font: { size: 11.5 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 10 } },
       y: { grid: { color: REJILLA }, border: { display: false }, beginAtZero: true,
            ticks: { color: GRIS, font: { size: 11.5 }, precision: 0, maxTicksLimit: 5 } }
     };
@@ -223,15 +224,16 @@
       const activa = f.estadoRegistro === 'ACTIVO';
       const clases = (f.estado === 'VENCIDO' ? 'vencida ' : '') + (activa ? '' : 'inactiva');
       html += '<tr class="' + clases + '">' +
-        '<td><span class="estado-celda"><i class="punto ' + CLASE_PUNTO[f.estado] + '"></i>' + NOMBRE_ESTADO_LOG[f.estado] + '</span></td>' +
+        // NUEVO (pulido): las clases l-… permiten mostrar cada fila como lista de dos líneas en tableta y celular
+        '<td class="l-estado"><span class="estado-celda"><i class="punto ' + CLASE_PUNTO[f.estado] + '"></i>' + NOMBRE_ESTADO_LOG[f.estado] + '</span></td>' +
         '<td class="producto">' + esc(f.producto) + (f.laboratorio ? '<br><span class="suave">' + esc(f.laboratorio) + '</span>' : '') + '</td>' +
-        '<td><span class="etiqueta">' + f.tipo + '</span></td>' +
+        '<td class="l-tipo"><span class="etiqueta">' + f.tipo + '</span></td>' +
         '<td class="lote">' + esc(f.lote) + '</td>' +
         '<td class="num">' + f.cantidad + ' <span class="suave">' + esc(f.unidad) + '</span></td>' +
-        '<td>' + (f.vence ? fechaCortaLog(f.vence) : '<span class="suave">—</span>') + '</td>' +
-        '<td>' + esc(f.textoRestante) + '</td>' +
-        '<td>' + esc(f.ubicacion) + '</td>' +
-        '<td>' + (activa ? botonesFila(f) : '<span class="suave">' + esc(f.estadoRegistro.toLowerCase()) + '</span>') + '</td>' +
+        '<td class="l-vence">' + (f.vence ? fechaCortaLog(f.vence) : '<span class="suave">—</span>') + '</td>' +
+        '<td class="l-restante">' + esc(f.textoRestante) + '</td>' +
+        '<td class="l-ubicacion">' + esc(f.ubicacion) + '</td>' +
+        '<td class="l-acciones">' + (activa ? botonesFila(f) : '<span class="suave">' + esc(f.estadoRegistro.toLowerCase()) + '</span>') + '</td>' +
         '</tr>';
       if (editorFila && editorFila.id === f.id) html += editorHtml(f, editorFila.accion);
     });

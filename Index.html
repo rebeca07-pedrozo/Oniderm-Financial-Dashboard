@@ -34,7 +34,8 @@
     <button id="tabDash" class="tab" onclick="cambiarTab('dash')">Dashboard</button>
     <button id="tabIngreso" class="tab activa" onclick="cambiarTab('ingreso')">Ingreso</button>
     <button id="tabEgreso" class="tab" onclick="cambiarTab('egreso')">Egreso</button>
-    <button id="tabLog" class="tab" onclick="cambiarTab('log')">Logística <span id="contadorLog" class="contador oculto"></span></button>
+    <!-- NUEVO (pulido): se agregó el title del contador, para que se sepa qué cuenta -->
+    <button id="tabLog" class="tab" onclick="cambiarTab('log')">Logística <span id="contadorLog" class="contador oculto" title="Vencidos o por vencer en menos de 6 meses"></span></button>
     <!-- NUEVO (cierre): agregar este botón -->
     <button id="tabCierre" class="tab" onclick="cambiarTab('cierre')">Cierre</button>
   </nav>
