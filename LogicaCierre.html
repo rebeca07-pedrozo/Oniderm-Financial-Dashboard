@@ -1,0 +1,188 @@
+<!--
+  Oniderm · Gestión financiera y logística
+  Copyright (c) 2026 Rebeca Pedrozo. Todos los derechos reservados.
+  Software propietario y confidencial. Prohibido copiar, modificar, distribuir
+  o usar este archivo, total o parcialmente, sin autorización escrita de la autora.
+  Ver el archivo LICENSE.
+-->
+<script>
+  /* ===== Cierre de caja: lo que entró en el día, por forma de pago ===== */
+  let cierreActual = null;
+  let cierrePidiendo = false;
+
+  /** Al abrir la pestaña: pone hoy en la fecha y, si ya había un cierre en pantalla, lo vuelve a calcular. */
+  function abrirCierre() {
+    const input = document.getElementById('c_fecha');
+    input.max = hoy();
+    if (!input.value) input.value = hoy();
+    if (cierreActual) hacerCierre();
+  }
+
+  function hacerCierre() {
+    if (cierrePidiendo) return;
+    const fecha = document.getElementById('c_fecha').value || hoy();
+    if (fecha > hoy()) { avisar('Elige hoy o un día anterior.', true); return; }
+
+    cierrePidiendo = true;
+    const boton = document.getElementById('c_boton');
+    boton.disabled = true;
+    boton.textContent = 'Calculando…';
+    document.getElementById('c_inicio').classList.add('oculto');
+    document.getElementById('c_error').classList.add('oculto');
+    document.getElementById('c_resultado').classList.remove('oculto');
+    // la primera vez se muestran las tarjetas en gris; si ya había un cierre, se deja mientras llega el nuevo
+    if (!cierreActual || cierreActual.fecha !== fecha) pintarCierreCargando();
+
+    google.script.run
+      .withSuccessHandler(function (datos) { terminarCierre(); pintarCierre(datos); })
+      .withFailureHandler(function (err) { terminarCierre(); errorCierre(err); })
+      .getCierreDelDia(fecha);
+  }
+
+  function terminarCierre() {
+    cierrePidiendo = false;
+    const boton = document.getElementById('c_boton');
+    boton.disabled = false;
+    boton.textContent = 'Cierre de caja';
+  }
+
+  function pintarCierre(d) {
+    cierreActual = d;
+    const t = d.total;
+    const efectivo = d.formas.filter(function (f) { return f.efectivo; })
+                             .reduce(function (s, f) { return s + f.valor; }, 0);
+
+    // los totales de arriba son la suma de las tarjetas, no un número aparte
+    console.assert(d.formas.reduce(function (s, f) { return s + f.valor; }, 0) === t.valor, 'Las tarjetas no suman el total');
+    console.assert(d.atenciones.length === t.atenciones, 'Las atenciones no cuadran con el total');
+
+    document.getElementById('c_dia').textContent = (d.esHoy ? 'Entró hoy, ' : 'Entró el ') + fechaLargaC(d.fecha);
+    document.getElementById('c_total').textContent = pesosC(t.valor);
+    document.getElementById('c_totalSub').innerHTML = t.atenciones
+      ? pluralC(t.atenciones, 'atención', 'atenciones') +
+        (t.comision ? ' · después de la comisión BOLD llegan <b>' + pesosC(t.neto) + '</b>' : '')
+      : 'Sin ingresos registrados';
+
+    document.getElementById('c_hallazgo').innerHTML = hallazgoCierre(d, efectivo);
+    pintarFormas(d.formas, t.valor);
+    pintarAtenciones(d.atenciones);
+    document.getElementById('c_pie').textContent =
+      'Calculado a las ' + d.calculado.toLowerCase() + ' con la hoja ' + d.hoja + '.';
+    document.getElementById('c_imprimir').classList.remove('oculto');
+  }
+
+  /** La frase de arriba: lo que hay que contar y lo que falta antes de cerrar. */
+  function hallazgoCierre(d, efectivo) {
+    if (!d.total.atenciones) {
+      return 'No hay ingresos registrados ' + (d.esHoy ? 'hoy' : 'ese día') +
+             '. Si hubo atenciones, regístralas en <button type="button" class="enlace" onclick="cambiarTab(\'ingreso\')">Ingreso</button> y vuelve a hacer el cierre.';
+    }
+    let texto = 'En la caja debe haber <b>' + pesosC(efectivo) + '</b> en efectivo.';
+    if (d.pendientesFactura) {
+      texto += ' <span class="cierre-pendiente">' +
+        pluralC(d.pendientesFactura, 'atención pidió factura y aún no tiene número.',
+                'atenciones pidieron factura y aún no tienen número.') + '</span> <button type="button" class="enlace" onclick="cambiarTab(\'ingreso\')">Ver pendientes</button>';
+    }
+    return texto;
+  }
+
+  function pintarFormas(formas, total) {
+    const caja = document.getElementById('c_formas');
+    caja.style.setProperty('--columnas', columnasCierre(formas.length));
+    caja.innerHTML = formas.map(function (f) {
+      const parte = total ? Math.round(f.valor / total * 100) : 0;
+      let nota = '';
+      if (f.efectivo && f.atenciones) nota = 'Debe estar en caja';
+      else if (f.comision) nota = 'Comisión BOLD ' + pesosC(f.comision) + '<br>Llegan ' + pesosC(f.neto);
+      else if (f.atenciones) nota = 'Sin comisión: llega completo';
+      return '<article class="forma' + (f.atenciones ? '' : ' en-cero') + '">' +
+        '<h3>' + escC(nombreFormaC(f.nombre)) + '</h3>' +
+        '<strong>' + pesosC(f.valor) + '</strong>' +
+        '<span class="forma-meta">' + (f.atenciones
+          ? pluralC(f.atenciones, 'atención', 'atenciones') + ' · ' + parte + '\u00a0% del día'
+          : 'Sin atenciones') + '</span>' +
+        '<span class="forma-barra" role="img" aria-label="' + parte + ' % del día"><i style="width:' + parte + '%"></i></span>' +
+        (nota ? '<span class="forma-nota">' + nota + '</span>' : '') +
+        '</article>';
+    }).join('');
+  }
+
+  function pintarAtenciones(lista) {
+    document.getElementById('c_conteo').textContent = lista.length ? lista.length : '';
+    const cuerpo = document.getElementById('c_atenciones');
+    if (!lista.length) {
+      cuerpo.innerHTML = '<tr class="vacia"><td colspan="5">Cuando registres ingresos de este día, aparecen aquí.</td></tr>';
+      return;
+    }
+    cuerpo.innerHTML = lista.map(function (a) {
+      return '<tr>' +
+        '<td class="c-paciente">' + escC(a.paciente || '—') +
+          (a.pendienteFactura ? ' <span class="etiqueta-factura pendiente">Factura sin número</span>' : '') + '</td>' +
+        '<td class="c-servicio">' + escC(a.procedimiento || a.codigo || '—') + '</td>' +
+        '<td class="c-prof">' + escC(a.profesional || '—') + '</td>' +
+        '<td class="c-forma">' + escC(nombreFormaC(a.formaPago)) + '</td>' +
+        '<td class="c-valor">' + pesosC(a.valor) + '</td>' +
+        // solo en el celular: servicio, profesional y forma de pago en una segunda línea
+        '<td class="c-detalle">' + escC([a.procedimiento || a.codigo, a.profesional, nombreFormaC(a.formaPago)].filter(String).join(' · ')) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  /** Mientras llega el cierre: el mismo diseño con barras grises del tamaño de cada cifra. */
+  function pintarCierreCargando() {
+    const formas = (catalogo && catalogo.formasPago && catalogo.formasPago.length) ? catalogo.formasPago : ['', '', '', ''];
+    document.getElementById('c_dia').textContent = 'Calculando ' + fechaLargaC(document.getElementById('c_fecha').value) + '…';
+    document.getElementById('c_total').innerHTML = '<span class="gris" style="width:220px;height:36px"></span>';
+    document.getElementById('c_totalSub').innerHTML = '<span class="gris" style="width:260px;height:14px"></span>';
+    document.getElementById('c_hallazgo').innerHTML = '<span class="gris" style="width:320px;height:14px"></span>';
+    const caja = document.getElementById('c_formas');
+    caja.style.setProperty('--columnas', columnasCierre(formas.length));
+    caja.innerHTML = formas.map(function (nombre) {
+      return '<article class="forma"><h3>' + (nombre ? escC(nombreFormaC(nombre)) : '<span class="gris" style="width:90px;height:14px"></span>') + '</h3>' +
+        '<strong><span class="gris" style="width:140px;height:26px"></span></strong>' +
+        '<span class="forma-meta"><span class="gris" style="width:120px;height:12px"></span></span></article>';
+    }).join('');
+    document.getElementById('c_atenciones').innerHTML = '<tr class="vacia"><td colspan="5"><span class="gris" style="width:60%;height:14px"></span></td></tr>';
+    document.getElementById('c_conteo').textContent = '';
+    document.getElementById('c_pie').textContent = '';
+  }
+
+  function errorCierre(err) {
+    const mensaje = ((err && err.message) || String(err || 'Error desconocido')).replace(/^Exception:\s*/, '');
+    if (cierreActual) {
+      // se deja el último cierre en pantalla y se avisa
+      avisar('No se pudo actualizar el cierre: ' + mensaje, true);
+      return;
+    }
+    document.getElementById('c_resultado').classList.add('oculto');
+    document.getElementById('c_errorTexto').textContent = 'No se pudo calcular el cierre: ' + mensaje;
+    document.getElementById('c_error').classList.remove('oculto');
+  }
+
+  /** Columnas según cuántas formas de pago hay, para que no quede una tarjeta sola en la última fila. */
+  function columnasCierre(n) {
+    if (n <= 4) return Math.max(n, 1);
+    if (n === 5 || n === 6 || n === 9) return 3;
+    return 4;
+  }
+
+  /* ---------- formato ---------- */
+  function nombreFormaC(t) {
+    const s = String(t || '').trim().toLowerCase()
+      .replace(/\bdebito\b/g, 'débito').replace(/\bcredito\b/g, 'crédito');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function fechaLargaC(iso) {
+    const p = String(iso || '').split('-').map(Number);
+    if (p.length !== 3 || !p[0]) return '';
+    return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  function pluralC(n, uno, varios) { return n + '\u00a0' + (n === 1 ? uno : varios); }
+  // espacio que no se parte: el "$" nunca queda en una línea y la cifra en otra
+  function pesosC(n) { return '$\u00a0' + Math.round(Number(n) || 0).toLocaleString('es-CO'); }
+  function escC(t) {
+    return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+</script>

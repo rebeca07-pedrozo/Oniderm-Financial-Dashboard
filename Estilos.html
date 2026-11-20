@@ -280,7 +280,7 @@
   }
   @media (max-width: 620px) {
     .campo.chico, .campo.medio, .campo.grande { width: 100%; }
-    .app { padding: 20px 14px 48px; }
+    .app { padding: 20px 16px 48px; }
     .tablero-top { align-items: stretch; }
     .periodo { flex-wrap: wrap; width: 100%; }
     .periodo select { flex: 1 1 40%; min-width: 0; }
@@ -332,4 +332,86 @@
     .etiqueta-factura { grid-row: auto; grid-column: 1; justify-self: start; margin-top: 4px; }
   }
   /* ===== FIN NUEVO (pacientes) ===== */
+
+  /* ===== NUEVO (cierre) · PEGAR este bloque completo al final, justo antes de la etiqueta que cierra el style ===== */
+  .cierre-controles { display: flex; gap: 8px; align-items: center; }
+  .cierre-controles input[type="date"] { width: auto; padding: 9px 12px; font-size: 14px; }
+  .cierre-inicio, .cierre-total, .cierre-error, .forma {
+    background: var(--blanco); border: 1px solid var(--verde-borde); border-radius: var(--radio);
+  }
+  .cierre-inicio { margin: 0; padding: 26px 28px; font-size: 15px; }
+  .cierre-error { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 22px; border-color: #E5CFCB; }
+  .cierre-error p { margin: 0; font-size: 14px; }
+  .cierre-error.oculto { display: none; } /* si no, el display: flex de arriba le gana a .oculto */
+
+  .cierre-total { padding: 22px 26px; margin-bottom: 12px; }
+  .cierre-total p { margin: 0; }
+  .cierre-dia { font-size: 14px; color: var(--texto-suave); }
+  .cierre-dia::first-letter { text-transform: uppercase; }
+  .cierre-cifra { margin-top: 4px !important; font-size: 36px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .cierre-sub { margin-top: 4px !important; font-size: 14px; color: var(--texto-suave); }
+  .cierre-sub b { color: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cierre-hallazgo { margin-top: 16px !important; padding-top: 14px; border-top: 1px solid var(--verde-borde); font-size: 15px; }
+  .cierre-hallazgo b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cierre-pendiente { color: #8A6416; }
+  /* el verde de la marca como texto no se lee (2,5:1); para enlaces se usa este tono más oscuro (5,1:1) */
+  .cierre .enlace { color: #2B7A68; }
+
+  /* columnas según cuántas formas de pago hay (las pone LogicaCierre) */
+  .cierre-formas { display: grid; grid-template-columns: repeat(var(--columnas, 4), minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .forma { padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .forma h3 { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--texto-suave); }
+  .forma strong { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .forma-meta { font-size: 12.5px; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+  .forma-barra { display: block; height: 4px; border-radius: 2px; background: var(--crema); overflow: hidden; margin-top: 2px; }
+  .forma-barra i { display: block; height: 100%; background: var(--verde); }
+  .forma-nota { font-size: 12.5px; color: var(--texto); font-variant-numeric: tabular-nums; }
+
+  .gris { display: inline-block; max-width: 100%; border-radius: 4px; background: #ECE8E2; vertical-align: middle; }
+
+  .cierre-tabla td.c-valor, .cierre-tabla th:last-child { text-align: right; }
+  .cierre-tabla td { text-align: left; }
+  .cierre-tabla th { text-align: left; }
+  .cierre-tabla tr.vacia td { color: var(--texto-suave); padding: 14px 12px; }
+  .cierre-tabla tr.vacia:hover { background: transparent; }
+  .cierre-tabla .etiqueta-factura { margin-left: 4px; }
+  .cierre-tabla td.c-detalle { display: none; }
+  .cierre-pie { margin: 2px 0 0; font-size: 12.5px; color: var(--texto-suave); }
+
+  @media (max-width: 900px) {
+    .cierre-formas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cierre-formas > .forma:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    /* en tableta y celular cada atención es una fila de dos líneas */
+    .cierre-tabla thead { display: none; }
+    .cierre-tabla tbody tr { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid var(--crema); }
+    .cierre-tabla tbody tr:last-child { border-bottom: 0; }
+    .cierre-tabla td { padding: 0; border: 0; }
+    .cierre-tabla td.c-paciente { font-weight: 600; }
+    .cierre-tabla td.c-valor { grid-column: 2; grid-row: 1; }
+    .cierre-tabla td.c-servicio, .cierre-tabla td.c-prof, .cierre-tabla td.c-forma { display: none; }
+    .cierre-tabla td.c-detalle { display: block; grid-column: 1 / -1; font-size: 12.5px; color: var(--texto-suave); }
+    .cierre-tabla tr.vacia { display: block; }
+  }
+  @media (max-width: 620px) {
+    .cierre-controles { width: 100%; }
+    .cierre-controles input[type="date"], .cierre-controles .boton-registrar { flex: 1 1 0; min-width: 0; width: auto; }
+    /* en el celular las formas de pago son una lista: nombre a la izquierda, cifra a la derecha */
+    .cierre-formas { grid-template-columns: 1fr; gap: 8px; }
+    .forma { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 12px; }
+    .forma h3 { font-size: 14px; color: var(--texto); }
+    .forma strong { grid-column: 2; grid-row: 1; }
+    .forma-meta, .forma-barra, .forma-nota { grid-column: 1 / -1; }
+    .cierre-total { padding: 18px 18px; }
+    .cierre-cifra { font-size: 30px; }
+    .forma { padding: 14px 16px 12px; }
+    .forma strong { font-size: 20px; }
+    .cierre-inicio { padding: 20px 18px; }
+    .cierre-error { flex-direction: column; align-items: flex-start; }
+  }
+  @media print {
+    body { background: #fff; }
+    .tabs, .cierre-controles, #c_imprimir, .estado, .aviso, #pacientesIngreso, #recientes { display: none !important; }
+    .cierre-total, .forma, .panel { break-inside: avoid; }
+  }
+  /* ===== FIN NUEVO (cierre) ===== */
 </style>

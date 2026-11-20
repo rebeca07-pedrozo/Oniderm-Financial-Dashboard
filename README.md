@@ -35,7 +35,7 @@ Para un consultorio habilitado esto no es solo incómodo: es un riesgo sanitario
 
 ## La solución
 
-Una **web app única** con cuatro pestañas, publicada desde Google Apps Script. No hay servidores que pagar ni que
+Una **web app única** con cinco pestañas, publicada desde Google Apps Script. No hay servidores que pagar ni que
 mantener: los datos siguen en Google Sheets, donde el equipo ya trabajaba, y la app les pone encima una interfaz
 clara, reglas de negocio y alertas.
 
@@ -54,6 +54,9 @@ clara, reglas de negocio y alertas.
 - **Factura pendiente:** búsqueda de pacientes (nombre en cualquier orden o cédula), lista de ingresos sin número
   de factura y edición de un ingreso ya guardado sin abrir la hoja de cálculo.
 - **Registro de egresos** por concepto contable, con soporte y número de soporte.
+- **Cierre de caja:** un botón muestra lo que entró en el día, con una tarjeta por forma de pago (efectivo,
+  tarjetas, transferencia), cuánto efectivo debe haber en la caja, lo que llega después de la comisión BOLD
+  y las facturas pedidas que aún no tienen número. Se puede revisar cualquier día anterior e imprimir.
 - Cada movimiento se guarda en la hoja del semestre correcto según su fecha, con mes y año calculados.
 - **Tablero financiero:** lo que entró, lo que salió, margen y caja acumulada, comparados con el año anterior.
   Se filtra por año, semestre o trimestre, y se **agrupa por mes, trimestre, semestre o año**.
@@ -260,13 +263,14 @@ Lo que se sabe hoy y todavía no se resuelve:
 ├── InventarioAlertas.js    Revisión diaria y correo de alertas
 ├── Logo.js                 Logo desde Drive (por ID) y conversión a base64
 ├── Pacientes.js            Normalización de pacientes, búsqueda, pendientes de factura y edición
+├── Cierre.js               Cierre de caja del día por forma de pago (solo lectura)
 ├── WebApp.js               doGet(), includes y diagnóstico
 ├── Index.html              Estructura de la interfaz
 ├── Estilos.html            Estilos con la paleta de la marca
 ├── Logica.html             Interfaz de finanzas y tablero
 ├── LogicaLogistica.html    Interfaz de logística
 ├── LogicaPacientes.html    Búsqueda, pendientes de factura y edición de ingresos
-└── arquitectura-empresarial/  Taller de arquitectura empresarial (TOGAF): documento, presupuesto y cronograma
+└── LogicaCierre.html       Interfaz del cierre de caja
 ```
 
 Todo el código está en español, con nombres simples y un archivo por responsabilidad.

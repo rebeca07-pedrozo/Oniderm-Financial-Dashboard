@@ -35,6 +35,8 @@
     <button id="tabIngreso" class="tab activa" onclick="cambiarTab('ingreso')">Ingreso</button>
     <button id="tabEgreso" class="tab" onclick="cambiarTab('egreso')">Egreso</button>
     <button id="tabLog" class="tab" onclick="cambiarTab('log')">Logística <span id="contadorLog" class="contador oculto"></span></button>
+    <!-- NUEVO (cierre): agregar este botón -->
+    <button id="tabCierre" class="tab" onclick="cambiarTab('cierre')">Cierre</button>
   </nav>
 
   <!-- ====== INGRESO ====== -->
@@ -430,6 +432,51 @@
 
   </section>
 
+  <!-- ===== NUEVO (cierre) · PEGAR esta sección completa antes del </div> que cierra la app ===== -->
+  <section id="formCierre" class="cierre oculto">
+
+    <header class="tablero-top">
+      <div>
+        <h2 class="titulo-tablero">Cierre de caja</h2>
+        <p class="sub-tablero">Lo que entró en el día, por forma de pago</p>
+      </div>
+      <div class="cierre-controles">
+        <input type="date" id="c_fecha" aria-label="Día del cierre" onchange="if (cierreActual) hacerCierre()">
+        <button type="button" id="c_boton" class="boton-registrar" onclick="hacerCierre()">Cierre de caja</button>
+      </div>
+    </header>
+
+    <p id="c_inicio" class="cierre-inicio">Elige el día y toca <b>Cierre de caja</b> para ver cuánto entró en efectivo, con tarjeta y por transferencia.</p>
+
+    <div id="c_error" class="cierre-error oculto" role="alert">
+      <p id="c_errorTexto"></p>
+      <button type="button" class="boton-chico" onclick="hacerCierre()">Reintentar</button>
+    </div>
+
+    <div id="c_resultado" class="oculto" aria-live="polite">
+      <section class="cierre-total">
+        <p id="c_dia" class="cierre-dia"></p>
+        <p id="c_total" class="cierre-cifra"></p>
+        <p id="c_totalSub" class="cierre-sub"></p>
+        <p id="c_hallazgo" class="cierre-hallazgo"></p>
+      </section>
+
+      <section id="c_formas" class="cierre-formas" aria-label="Por forma de pago"></section>
+
+      <section class="panel">
+        <h2>Atenciones del día <span id="c_conteo" class="conteo-tabla"></span></h2>
+        <table class="tabla cierre-tabla">
+          <thead><tr><th>Paciente</th><th>Servicio</th><th>Profesional</th><th>Forma de pago</th><th>Valor</th></tr></thead>
+          <tbody id="c_atenciones"></tbody>
+        </table>
+      </section>
+
+      <p class="cierre-pie"><span id="c_pie"></span> <button type="button" id="c_imprimir" class="enlace oculto" onclick="window.print()">Imprimir cierre</button></p>
+    </div>
+
+  </section>
+  <!-- ===== FIN NUEVO (cierre) ===== -->
+
 </div>
 
 <div id="aviso" class="aviso"></div>
@@ -439,5 +486,7 @@
 <?!= incluir('LogicaLogistica'); ?>
 <!-- NUEVO (pacientes): agregar esta línea -->
 <?!= incluir('LogicaPacientes'); ?>
+<!-- NUEVO (cierre): agregar esta línea -->
+<?!= incluir('LogicaCierre'); ?>
 </body>
 </html>

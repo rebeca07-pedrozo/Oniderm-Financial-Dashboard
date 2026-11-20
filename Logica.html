@@ -80,19 +80,23 @@
 
     function cambiarTab(tab) {
     tabActual = tab;
-    ['Ingreso', 'Egreso', 'Dash', 'Log'].forEach(function (t) {
+    // NUEVO (cierre): 'Cierre' agregado al final de esta lista
+    ['Ingreso', 'Egreso', 'Dash', 'Log', 'Cierre'].forEach(function (t) {
       const activa = t.toLowerCase() === tab;
       document.getElementById('tab' + t).classList.toggle('activa', activa);
       document.getElementById('form' + t).classList.toggle('oculto', !activa);
     });
     const hayRecientes = document.getElementById('listaRecientes').children.length > 0;
-    document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || tab === 'log' || !hayRecientes);
+    // NUEVO (cierre): se agregó tab === 'cierre'
+    document.getElementById('recientes').classList.toggle('oculto', tab === 'dash' || tab === 'log' || tab === 'cierre' || !hayRecientes);
     if (tab === 'dash') cargarDashboard();
     if (tab === 'log') cargarInventario();
     // ===== NUEVO (pacientes) · agregar estas 2 líneas al final de cambiarTab =====
     document.getElementById('pacientesIngreso').classList.toggle('oculto', tab !== 'ingreso');
     if (tab === 'ingreso') cargarPendientes();
     // ===== FIN NUEVO (pacientes) =====
+    // NUEVO (cierre): agregar esta línea al final de cambiarTab
+    if (tab === 'cierre') abrirCierre();
   }
 
   function verFactura() {
